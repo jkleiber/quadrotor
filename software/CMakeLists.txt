@@ -27,7 +27,7 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 
 
 # Robot Code
-add_executable(auto_quadrotor src/main.cpp )
+add_executable(quadrotor_fc src/main.cpp )
 # target_link_libraries(auto_mobile_robot 
 #     PUBLIC 
 #         kleiber_guidance 
@@ -55,10 +55,10 @@ if(COMPILE_SIMULATION)
     set(CMAKE_CXX_EXTENSIONS OFF)
 
     # Simulator Code
-    add_executable(auto_quadrotor_sim 
+    add_executable(quadrotor_fc_sim 
         src/sim_main.cpp
         )
-    target_link_libraries(auto_quadrotor_sim
+    target_link_libraries(quadrotor_fc_sim
         PUBLIC  
             ${GAZEBO_LIBRARIES}
         PRIVATE 

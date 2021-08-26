@@ -9,4 +9,4 @@ ROBOT_BIN="$(pwd)/../build"
 
 # Change to the robot binaries directory and run the simulator code
 cd ${ROBOT_BIN}
-./auto_quadrotor_sim
+./quadrotor_fc_sim
