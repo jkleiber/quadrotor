@@ -19,6 +19,11 @@ bool is_imu_debug = true;
 bool is_pid_debug = false;
 bool is_scope_debug = false;
 
+// Crash detection
+bool is_crashed = false;
+float roll_limit = 90;
+float pitch_limit = 90;
+
 // Scope Pin
 const int scope_pin = A14;
 
@@ -193,8 +198,20 @@ void loop() {
   // Compute base output using throttle
   int throttle = convert_throttle_to_pwm(channel_values[throttle_channel]);
 
+  // The quadcopter is crashed if it rolls or pitches too much.
+  if (fabs(roll) >= roll_limit || fabs(pitch) >= pitch_limit)
+  {
+    is_crashed = true;
+  }
+
+  // The quadcopter can only be un-crashed once the throttle is set low and the quadcopter is upright
+  if (throttle < throttle_cutoff && fabs(roll) < roll_limit && fabs(pitch) < pitch_limit)
+  {
+    is_crashed = false;
+  }
+
   // Don't do anything unless the throttle is outside a deadband.
-  if (throttle >= throttle_cutoff)
+  if (throttle >= throttle_cutoff && !is_crashed)
   {
     // PID control calculations
     float roll_output = roll_pid.update(roll_setpoint, roll);
