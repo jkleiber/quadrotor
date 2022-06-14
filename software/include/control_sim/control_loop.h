@@ -12,6 +12,13 @@ class ControlLoop
 
         // Given state and targets, control the quadcopter
         Eigen::VectorXd run_loop(Eigen::VectorXd x, Eigen::VectorXd setpoints);
+
+    private:
+        PIDController height_pid;
+
+        // Feedforward on height PID.
+        // This is the operating throttle to maintain constant height
+        double height_pid_ff; 
 };
 
 #endif

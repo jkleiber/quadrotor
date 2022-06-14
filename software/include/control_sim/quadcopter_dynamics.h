@@ -3,6 +3,7 @@
 
 #include <math.h>
 #include <eigen3/Eigen/Dense>
+#include <iostream>
 
 
 class QuadcopterDynamics {
@@ -48,6 +49,10 @@ class QuadcopterDynamics {
         // Dimensions (m)
         double dx_arm;
         double dy_arm; 
+
+        // Limits
+        double max_motor_force; // Max motor force (N)
+        double max_omega;       // Max angular velocity (rad / s)
 };
 
 #endif

@@ -22,11 +22,17 @@ QuadcopterDynamics::QuadcopterDynamics(Eigen::VectorXd x0, double dt)
 
     // Force and moment constants. F = K_f w^2, M = K_b w^2
     // TODO: This is arbitrary, but sort of based on the motor specs
-    // Max force is 1.522 kg for a 5.1x3.1x3 propeller (Force = 1.522 * 9.8 = 14.9156).
+    // Max force is 1.522 kg for a 5.1x3.1x3 propeller. This assumes 16V when we have 14.8V equipped.
+    // Let's take 1.522 * 14.8 / 16 = 1.40785 kg to be max pull.
+    // (Force = 1.40785 * 9.81 = 13.811).
+    max_motor_force = 13.811;
+
     // Max RPM (no-load) is 2750 KV * 14.8V = 40,700 RPM -> 4262 rad/s. 
-    // Assuming a load makes for 70% max speed -> 2983.4 rad/s
-    // Thus, Kf = 14.9156 / 2983.4^2 = 1.676e-6
-    K_f = 1.676e-6;
+    // Assuming a load makes for 80% max speed -> 3409.6 rad/s
+    max_omega = 3409.6;
+
+    // Thus, Kf = max_force / max_omega^2
+    K_f = max_motor_force / pow(max_omega, 2);
 
     // Based on nothing but the feeling that torque of the props is much smaller than the force 
     // of the props, we divide K_f by 20 to get K_m
@@ -47,8 +53,12 @@ QuadcopterDynamics::QuadcopterDynamics(Eigen::VectorXd x0, double dt)
 
 void QuadcopterDynamics::get_motor_forces(Eigen::VectorXd u)
 {
-    // TODO
-    this->x_motors = Eigen::VectorXd::Zero(4);
+    // u = throttle for each motor
+    // Convert throttle to rad/s
+    Eigen::VectorXd w_motors = max_omega * u;
+
+    // Thrust = K_f * w_i^2 for the i-th motor
+    this->x_motors = K_f * w_motors.array().pow(2);
 }
 
 void QuadcopterDynamics::update_dynamics(Eigen::VectorXd u0)
@@ -70,6 +80,13 @@ void QuadcopterDynamics::update_dynamics(Eigen::VectorXd u0)
     // Compute motor forces from control.
     this->get_motor_forces(u0);
 
+    // Motor Numbering
+    /*
+        3 --[---]---1
+            |   |    
+        2---[---]---4
+    */
+
     // Control is the motor forces
     double F1 = x_motors(0);
     double F2 = x_motors(1);
@@ -86,7 +103,7 @@ void QuadcopterDynamics::update_dynamics(Eigen::VectorXd u0)
     // w^2 = F / K_f
     // torque = K_m w^2 = K_b (F / K_f)
     double N = K_m * (-F1 - F2 + F3 + F4) / K_f; 
-    // TODO: make sure the motor numbers are documented
+
 
     // Angles
     double cos_roll = cos(roll);
@@ -102,7 +119,7 @@ void QuadcopterDynamics::update_dynamics(Eigen::VectorXd u0)
     // Velocity update
     x_dot(0) = -g*sin_pitch + r*v - q*w;
     x_dot(1) = g*sin_roll*cos_pitch - r*u + p*w;
-    x_dot(2) = (1/m) * Fz - g*cos_roll*cos_pitch;
+    x_dot(2) = (1/m) * Fz - g*cos_roll*cos_pitch - q*u + p*v;
 
     // Angular velocity update
     x_dot(3) = (1/Ixx)*(L + (Iyy - Izz)*q*r);
@@ -123,6 +140,12 @@ void QuadcopterDynamics::update_dynamics(Eigen::VectorXd u0)
 
     // Apply the update to the dynamics
     this->x = this->x + x_dot * dt_;
+
+    // Don't allow the drone to fall below the ground
+    if (x(8) < 0)
+    {
+        x(8) = 0;
+    }
 }
 
 
