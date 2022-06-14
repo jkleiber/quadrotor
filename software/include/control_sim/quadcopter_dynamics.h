@@ -33,6 +33,10 @@ class QuadcopterDynamics {
         // Gravity (m/s^2)
         double g;
 
+        // Force and moment constants
+        double K_f; // Force
+        double K_m; // Moment
+
         // Inertia (kg / m^2)
         double Ixx;
         double Ixy;

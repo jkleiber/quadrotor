@@ -20,6 +20,18 @@ QuadcopterDynamics::QuadcopterDynamics(Eigen::VectorXd x0, double dt)
     Iyy = 0.006; // kg/m^2
     Izz = 0.009; // kg/m^2
 
+    // Force and moment constants. F = K_f w^2, M = K_b w^2
+    // TODO: This is arbitrary, but sort of based on the motor specs
+    // Max force is 1.522 kg for a 5.1x3.1x3 propeller (Force = 1.522 * 9.8 = 14.9156).
+    // Max RPM (no-load) is 2750 KV * 14.8V = 40,700 RPM -> 4262 rad/s. 
+    // Assuming a load makes for 70% max speed -> 2983.4 rad/s
+    // Thus, Kf = 14.9156 / 2983.4^2 = 1.676e-6
+    K_f = 1.676e-6;
+
+    // Based on nothing but the feeling that torque of the props is much smaller than the force 
+    // of the props, we divide K_f by 20 to get K_m
+    K_m = K_f / 20.0;
+
     // Simplify Ixy, Ixz, Iyz = 0 since they are all very small
     Ixy = 0;
     Ixz = 0;
@@ -70,7 +82,11 @@ void QuadcopterDynamics::update_dynamics(Eigen::VectorXd u0)
     double Fz = F1 + F2 + F3 + F4;
     double L = (F1 - F2 - F3 + F4)*dy_arm;
     double M = (F1 - F2 + F3 - F4)*dx_arm;
-    double N = (-F1 - F2 + F3 + F4)*arm_cg_len; // TODO: the torque generated needs to be solved explicitly
+
+    // w^2 = F / K_f
+    // torque = K_m w^2 = K_b (F / K_f)
+    double N = K_m * (-F1 - F2 + F3 + F4) / K_f; 
+    // TODO: make sure the motor numbers are documented
 
     // Angles
     double cos_roll = cos(roll);
