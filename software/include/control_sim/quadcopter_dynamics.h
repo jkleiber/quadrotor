@@ -4,11 +4,22 @@
 #include <math.h>
 #include <eigen3/Eigen/Dense>
 #include <iostream>
+#include <random>
+#include <string>
 
+#include "control_sim/sim_clock.h"
+#include "control_sim/logging.h"
 
 class QuadcopterDynamics {
     public:
-        QuadcopterDynamics(Eigen::VectorXd x0, double dt);
+        QuadcopterDynamics(Eigen::VectorXd x0, double dt, SimClock *clk) 
+            : motor_dist(0,0.1),
+              state_log("state_log.csv", clk)
+        {
+            this->init(x0, dt);
+        }
+
+        void init(Eigen::VectorXd x0, double dt);
 
         // Compute the forces for each motor
         void get_motor_forces(Eigen::VectorXd u);
@@ -18,6 +29,9 @@ class QuadcopterDynamics {
 
         // Get the current quadcopter state
         Eigen::VectorXd get_state();
+
+        // Convert state to string
+        std::string state_to_string(Eigen::VectorXd x);
 
     private:
 
@@ -53,6 +67,13 @@ class QuadcopterDynamics {
         // Limits
         double max_motor_force; // Max motor force (N)
         double max_omega;       // Max angular velocity (rad / s)
+
+        // Disturbances
+        std::default_random_engine motor_gen;
+        std::normal_distribution<double> motor_dist;
+
+        // State logging
+        Logging state_log;
 };
 
 #endif

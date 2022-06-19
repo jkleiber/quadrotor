@@ -5,6 +5,7 @@
 
 #include "control_sim/control_loop.h"
 #include "control_sim/quadcopter_dynamics.h"
+#include "control_sim/sim_clock.h"
 
 
 #include <eigen3/Eigen/Dense>
@@ -12,13 +13,15 @@
 
 int main(int argc, char **argv)
 {
+    // Simulation clock
+    SimClock clk;
+
     std::cout << "Control Sim\n";
 
     // Configuration
     int max_iter = 1000; // 10 sec
-    int print_every = 10; // 0.1 sec
+    int print_every = 100; // 0.1 sec
     double dt = 0.01;
-    double t = 0;
 
     // Setpoints
     // Maintain level flight while taking off
@@ -35,12 +38,12 @@ int main(int argc, char **argv)
     Eigen::VectorXd u = Eigen::VectorXd::Zero(4);
 
     // Initialize Quadcopter dynamics
-    QuadcopterDynamics quadcopter(x0, dt);
+    QuadcopterDynamics quadcopter(x0, dt, &clk);
 
     // Initialize control loop
-    ControlLoop ctrl;
+    ControlLoop ctrl(&clk);
     
-
+    
     // Simulation loop
     for (int i = 0; i < max_iter; ++i)
     {
@@ -56,16 +59,16 @@ int main(int argc, char **argv)
         // Print status at a certain frequency
         if (i%print_every == 0)
         {
-            std::cout << "t=" << t << "sec" << " | throttle: " << u(0) << " | z:" << x(8) << std::endl;
+            std::cout << "t=" << clk.get_time() << "s" << " | throttle: " << u(0) << " | z:" << x(8) << std::endl;
         }
 
         // Increment time
-        t += dt;
+        clk.increment(dt);
 
         // Sleep for the time delta for PID.
-        // TODO: allow faster than real-time by accessing time from some function
-        int dt_ms = (int) (dt * 1000);
-        std::this_thread::sleep_for(std::chrono::milliseconds(dt_ms));
+        // // TODO: allow faster than real-time by accessing time from some function
+        // int dt_ms = (int) (dt * 1000);
+        // std::this_thread::sleep_for(std::chrono::milliseconds(dt_ms));
     }
 
     // TODO: export x trajectory to csv for visualization

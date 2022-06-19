@@ -1,22 +1,36 @@
 #ifndef PIDCONTROLLER_H
 #define PIDCONTROLLER_H
 
+// TODO: move completely away from RobotLib implementation
 #include "RobotLibUtil.h"
 #include <chrono>
 #include <algorithm>
 #include <math.h>
 
-#define MICROS_IN_A_SECOND (float)(1000.0 * 1000.0)
+#include "control_sim/sim_clock.h"
+
 
 class PIDController
 {
     public:
         // Constructors
-        PIDController();
-        PIDController(float init_state, float kp, float ki, float kd);
+        PIDController(SimClock *clk) : clk_(clk)
+        {
+            this->init();
+            this->begin(0.0);
+        }
+
+        PIDController(SimClock *clk, float init_state, float kp, float ki, float kd) : clk_(clk)
+        {
+            this->init();
+            this->begin(init_state, kp, ki, kd);
+        }
 
         // Copy assignment
         void operator=(const PIDController& pid);
+
+        // Init
+        void init();
 
         // Setters
         void begin(float init_state);
@@ -52,7 +66,8 @@ class PIDController
         bool is_bounded;
 
         // Timing
-        std::chrono::steady_clock::time_point last_time;
+        SimClock const* clk_;
+        double last_time;
         float dt;
 
         // Tolerance control

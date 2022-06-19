@@ -1,7 +1,7 @@
 #include "control_sim/quadcopter_dynamics.h"
 
 
-QuadcopterDynamics::QuadcopterDynamics(Eigen::VectorXd x0, double dt)
+void QuadcopterDynamics::init(Eigen::VectorXd x0, double dt)
 {
     // Initial conditions
     this->x = x0; // Expecting a R^12 vector
@@ -49,16 +49,27 @@ QuadcopterDynamics::QuadcopterDynamics(Eigen::VectorXd x0, double dt)
 
     // Motors initial conditions (assumed to be 0)
     this->x_motors = Eigen::VectorXd::Zero(4);
+
+    // Log the headers for the CSV
+    state_log.log_headers("u, v, w, p, q, r, x, y, z, roll, pitch, yaw");
 }
 
 void QuadcopterDynamics::get_motor_forces(Eigen::VectorXd u)
 {
+    // TODO: add a delay into the motor commands
+    
     // u = throttle for each motor
     // Convert throttle to rad/s
     Eigen::VectorXd w_motors = max_omega * u;
 
     // Thrust = K_f * w_i^2 for the i-th motor
     this->x_motors = K_f * w_motors.array().pow(2);
+
+    // Disturb thrust generated
+    for (int i = 0; i < 4; ++i)
+    {
+        this->x_motors(i) += motor_dist(motor_gen);
+    }
 }
 
 void QuadcopterDynamics::update_dynamics(Eigen::VectorXd u0)
@@ -86,6 +97,9 @@ void QuadcopterDynamics::update_dynamics(Eigen::VectorXd u0)
             |   |    
         2---[---]---4
     */
+    // Roll to the right is positive
+    // Pitch up is positive
+    // CW yaw is positive
 
     // Control is the motor forces
     double F1 = x_motors(0);
@@ -102,8 +116,8 @@ void QuadcopterDynamics::update_dynamics(Eigen::VectorXd u0)
 
     // w^2 = F / K_f
     // torque = K_m w^2 = K_b (F / K_f)
+    // Note: this assumes CW is positive
     double N = K_m * (-F1 - F2 + F3 + F4) / K_f; 
-
 
     // Angles
     double cos_roll = cos(roll);
@@ -141,11 +155,14 @@ void QuadcopterDynamics::update_dynamics(Eigen::VectorXd u0)
     // Apply the update to the dynamics
     this->x = this->x + x_dot * dt_;
 
+    // Log the dynamics
+    state_log.log_vector_xd(this->x);
+
     // Don't allow the drone to fall below the ground
-    if (x(8) < 0)
-    {
-        x(8) = 0;
-    }
+    // if (x(8) < 0)
+    // {
+    //     x(8) = 0;
+    // }
 }
 
 

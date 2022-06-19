@@ -1,91 +1,6 @@
 #include "control_sim/pid_controller.h"
 
 
-/********************************************/
-//          CONSTRUCTORS
-/********************************************/
-
-/**
- * @brief Construct a new PIDController object
- *
- */
-PIDController::PIDController()
-{
-    // PID values
-    this->integrator = 0.0;
-    this->error = 0.0;
-
-    // States
-    this->prev_error = 0.0;
-    this->last_state = 0.0;
-
-    // Equation constants
-    this->kP = 0.0;
-    this->kI = 0.0;
-    this->kD = 0.0;
-
-    // Boundary control
-    this->high = 1.0;
-    this->low = -1.0;
-    this->is_bounded = true;
-
-    // Timing
-    this->last_time = std::chrono::steady_clock::now();
-    this->dt = 0.0;
-
-    // Tolerance
-    this->derivative_tolerance = 0;
-    this->setpoint_tolerance = 0;
-    this->tolerance_enabled = false;
-
-    // Integrator
-    this->integrator_min = 1;
-    this->integrator_max = -1;
-}
-
-
-/**
- * @brief Construct a new PIDController object
- *
- * @param init_state starting state of the system
- * @param kp proportional coefficient
- * @param ki integral coefficient
- * @param kd derivative coefficient
- */
-PIDController::PIDController(float init_state, float kp, float ki, float kd)
-{
-    // PID values
-    this->integrator = 0.0;
-    this->error = 0.0;
-
-    // States
-    this->prev_error = 0.0;
-    this->last_state = init_state;
-
-    // Equation constants
-    this->kP = kp;
-    this->kI = ki;
-    this->kD = kd;
-
-    // Boundary control
-    this->high = 1.0;
-    this->low = -1.0;
-    this->is_bounded = true;
-
-    // Timing
-    this->last_time = std::chrono::steady_clock::now();
-    this->dt = 0.0;
-
-    // Tolerance
-    this->derivative_tolerance = 0;
-    this->setpoint_tolerance = 0;
-    this->tolerance_enabled = false;
-
-    // Integrator
-    this->integrator_min = 1;
-    this->integrator_max = -1;
-}
-
 
 /**
  * @brief Copy and assign a PIDController into another one
@@ -126,6 +41,23 @@ void PIDController::operator=(const PIDController& pid)
     this->integrator_max = pid.integrator_max;
 }
 
+void PIDController::init()
+{
+    // Boundary control
+    this->high = 1.0;
+    this->low = -1.0;
+    this->is_bounded = true;
+
+    // Tolerance
+    this->derivative_tolerance = 0;
+    this->setpoint_tolerance = 0;
+    this->tolerance_enabled = false;
+
+    // Integrator
+    this->integrator_min = 1;
+    this->integrator_max = -1;
+}
+
 
 /********************************************/
 //          SETTERS
@@ -147,7 +79,7 @@ void PIDController::begin(float init_state)
     this->last_state = init_state;
 
     // Timing
-    this->last_time = std::chrono::steady_clock::now();
+    this->last_time = 0.0;
     this->dt = 0.0;
 }
 
@@ -176,9 +108,10 @@ void PIDController::begin(float init_state, float kp, float ki, float kd)
     this->kD = kd;
 
     // Timing
-    this->last_time = std::chrono::steady_clock::now();
+    this->last_time = 0.0;
     this->dt = 0.0;
 }
+
 
 
 /**
@@ -270,8 +203,8 @@ float PIDController::update(float target_state, float cur_state)
     float slope;
 
     // Get the time step
-    std::chrono::steady_clock::time_point current_time = std::chrono::steady_clock::now();
-    this->dt = std::chrono::duration<double>(current_time - last_time).count();
+    double current_time = clk_->get_time();
+    this->dt = current_time - last_time;
 
     // Calculate error
     this->error = target_state - cur_state;
