@@ -13,7 +13,7 @@
 class QuadcopterDynamics {
     public:
         QuadcopterDynamics(Eigen::VectorXd x0, double dt, SimClock *clk) 
-            : motor_dist(0,0.1),
+            : motor_dist(0,0.5),
               state_log("state_log.csv", clk)
         {
             this->init(x0, dt);
@@ -38,6 +38,7 @@ class QuadcopterDynamics {
         // States
         Eigen::VectorXd x;
         Eigen::VectorXd x_motors;
+        Eigen::VectorXd u_prev;
 
         // Discrete time update
         double dt_;
@@ -67,6 +68,7 @@ class QuadcopterDynamics {
         // Limits
         double max_motor_force; // Max motor force (N)
         double max_omega;       // Max angular velocity (rad / s)
+        double motor_slew_rate; // Max motor slew rate (% / s)
 
         // Disturbances
         std::default_random_engine motor_gen;

@@ -12,15 +12,15 @@ void ControlLoop::init()
     height_pid_ff = 0.53;
 
     // Init pitch PID
-    pitch_pid.begin(0, 0.4, 0.0001, 0.2);
+    pitch_pid.begin(0, 0.1, 0.001, 0.05);
     pitch_pid.setOutputRange(-0.2, 0.2);
 
     // Init roll PID
-    roll_pid.begin(0, 0.4, 0.0001, 0.2);
+    roll_pid.begin(0, 0.1, 0.001, 0.05);
     roll_pid.setOutputRange(-0.2, 0.2);
 
     // Init yaw PID
-    yaw_pid.begin(0, 0.1, 0.001, 0.2);
+    yaw_pid.begin(0, 0.1, 0.001, 0.05);
     yaw_pid.setOutputRange(-0.2, 0.2);
 
     // Set up csv logging headers

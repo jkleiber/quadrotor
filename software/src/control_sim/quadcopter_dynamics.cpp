@@ -20,6 +20,9 @@ void QuadcopterDynamics::init(Eigen::VectorXd x0, double dt)
     Iyy = 0.006; // kg/m^2
     Izz = 0.009; // kg/m^2
 
+    // Limit the motor's slew rate
+    motor_slew_rate = 0.4 / 0.01; // Limit to changes of 40% every 0.01 sec
+
     // Force and moment constants. F = K_f w^2, M = K_b w^2
     // TODO: This is arbitrary, but sort of based on the motor specs
     // Max force is 1.522 kg for a 5.1x3.1x3 propeller. This assumes 16V when we have 14.8V equipped.
@@ -49,6 +52,7 @@ void QuadcopterDynamics::init(Eigen::VectorXd x0, double dt)
 
     // Motors initial conditions (assumed to be 0)
     this->x_motors = Eigen::VectorXd::Zero(4);
+    this->u_prev = Eigen::VectorXd::Zero(4);
 
     // Log the headers for the CSV
     state_log.log_headers("u, v, w, p, q, r, x, y, z, roll, pitch, yaw");
@@ -57,19 +61,34 @@ void QuadcopterDynamics::init(Eigen::VectorXd x0, double dt)
 void QuadcopterDynamics::get_motor_forces(Eigen::VectorXd u)
 {
     // TODO: add a delay into the motor commands
+
+    // Find the slew rate limits
+    Eigen::VectorXd u_max_slew = motor_slew_rate * Eigen::VectorXd::Ones(4);
+    Eigen::VectorXd u_max = u_prev + u_max_slew;
+    Eigen::VectorXd u_min = u_prev - u_max_slew;
     
+    // Slew rate limit the motors
+    for (int i = 0; i < 4; ++i)
+    {
+        u(i) = std::min(u_max(i), std::max(u_min(i), u(i)));
+    }
+
     // u = throttle for each motor
     // Convert throttle to rad/s
     Eigen::VectorXd w_motors = max_omega * u;
 
     // Thrust = K_f * w_i^2 for the i-th motor
-    this->x_motors = K_f * w_motors.array().pow(2);
+    Eigen::VectorXd new_x_motors = K_f * w_motors.array().pow(2);
 
     // Disturb thrust generated
     for (int i = 0; i < 4; ++i)
     {
-        this->x_motors(i) += motor_dist(motor_gen);
+        // Disturb
+        new_x_motors(i) += motor_dist(motor_gen);
     }
+
+    this->x_motors = new_x_motors;
+    u_prev = u;
 }
 
 void QuadcopterDynamics::update_dynamics(Eigen::VectorXd u0)
