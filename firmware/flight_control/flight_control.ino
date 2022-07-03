@@ -5,12 +5,24 @@
 #include <Adafruit_BNO055.h>
 #include <utility/imumaths.h>
 #include <PIDController.h>
+#include <SD.h>
+#include <SPI.h>
+
+#define LOG_FN_LEN 20
 
 // IBus Interface
 IBusBM ibus;
 
 // Remote control values
 int channel_values[6];
+
+// SD card logging
+const int sd_chip_select = BUILTIN_SDCARD;
+char log_base_name[] = "flight_";
+char log_file_name[LOG_FN_LEN];
+int flight_num = 0;
+String log_headers = "t,is_crashed,roll,pitch,yaw,throttle,roll_pid_out,pitch_pid_out,yaw_pid_out,motor_fl,motor_bl,motor_fr,motor_br,pwm_fl,pwm_bl,pwm_fr,pwm_br";
+bool is_logging_available = false;
 
 // Debugging
 bool is_rc_debug = false;
@@ -94,6 +106,18 @@ float pid_upper = 0.2;
 PIDController roll_pid = PIDController(roll, roll_kp, roll_ki, roll_kd);
 PIDController pitch_pid = PIDController(pitch, pitch_kp, pitch_ki, pitch_kd);
 PIDController yaw_pid = PIDController(yaw, yaw_kp, yaw_ki, yaw_kd);
+
+// Motor power
+float front_left_out  = 0.0;
+float back_left_out   = 0.0;
+float front_right_out = 0.0;
+float back_right_out  = 0.0;
+
+// Motor PWMs
+int pwm_fl = 0;
+int pwm_bl = 0;
+int pwm_fr = 0;
+int pwm_br = 0;
 
 // Convert RC throttle to percent power.
 float convert_rc_throttle_to_power(int throttle)
@@ -202,7 +226,40 @@ float augment_yaw(float yaw_setpoint, float yaw)
 }
 
 
-void setup() {
+int get_flight_number()
+{
+  int i = 1;
+  while (i <= 1000000)
+  {
+    // Convert the number to a string
+    char buf[12];
+    itoa(i, buf, 10);
+
+    // Make the name based on the other log files
+    char name[20];
+    strcat(name, log_base_name);
+    strcat(name, buf);
+
+    // If the name isn't taken, then set it.
+    // Also, only allow logging if a file name exists
+    if(!SD.exists(name))
+    {
+      return i;
+    }
+
+    // Increment counter and try again.
+    i++;
+  }
+
+  // Error if there is no flight number
+  return -1;
+}
+
+
+
+
+void setup() 
+{
   // Set up USB Serial for debugging
   if (is_rc_debug || is_imu_debug || is_pid_debug || is_scope_debug)
   {
@@ -214,6 +271,36 @@ void setup() {
     // There was a problem detecting the BNO055.
     Serial.print("No BNO055 detected - aborting flight control");
     while (1);
+  }
+
+  // If the SD card is inserted, enable logging to the SD card.
+  if (SD.begin(sd_chip_select)) 
+  {
+    // Name the file
+    flight_num = get_flight_number();
+    
+
+    if (flight_num >= 0)
+    {
+      // Logging is available
+      is_logging_available = true;
+
+      // Stringify the flight number
+      char flight_str_buf[12];
+      itoa(flight_num, flight_str_buf, 10); // 10 = base-10
+
+      // Form the log filename
+      strcat(log_file_name, log_base_name);
+      strcat(log_file_name, flight_str_buf);
+
+      // const char* version of the log filename
+      const char* logfile = const_cast<const char *>(log_file_name);
+      
+      // Set logging headers
+      File log_file = SD.open(logfile, FILE_WRITE);
+      log_file.println(log_headers);
+      log_file.close();
+    }
   }
   
   // Set up the IBusBM Serial interface.
@@ -315,31 +402,31 @@ void loop() {
     is_crashed = false;
   }
 
+  // PID control calculations
+  float roll_output = roll_pid.update(roll_setpoint, roll);
+  float pitch_output = pitch_pid.update(pitch_setpoint, pitch);
+  float yaw_output = yaw_pid.update(yaw_setpoint, yaw);
+
   // Don't do anything unless the throttle is outside a deadband.
   if (throttle >= throttle_cutoff && !is_crashed)
   {
-    // PID control calculations
-    float roll_output = roll_pid.update(roll_setpoint, roll);
-    float pitch_output = pitch_pid.update(pitch_setpoint, pitch);
-    float yaw_output = yaw_pid.update(yaw_setpoint, yaw);
-  
     // Compute power for each motor.
-    float front_left_out  = throttle - roll_output + pitch_output + yaw_output; 
-    float back_left_out   = throttle - roll_output - pitch_output - yaw_output;
-    float front_right_out = throttle + roll_output + pitch_output - yaw_output; 
-    float back_right_out  = throttle + roll_output - pitch_output + yaw_output; 
+    front_left_out  = throttle - roll_output + pitch_output + yaw_output; 
+    back_left_out   = throttle - roll_output - pitch_output - yaw_output;
+    front_right_out = throttle + roll_output + pitch_output - yaw_output; 
+    back_right_out  = throttle + roll_output - pitch_output + yaw_output; 
 
     // Convert power to PWM
-    int pwm_fl = convert_power_to_pwm(front_left_out);
-    int pwm_bl = convert_power_to_pwm(back_left_out);
-    int pwm_fr = convert_power_to_pwm(front_right_out);
-    int pwm_br = convert_power_to_pwm(back_right_out);
+    pwm_fl = convert_power_to_pwm(front_left_out);
+    pwm_bl = convert_power_to_pwm(back_left_out);
+    pwm_fr = convert_power_to_pwm(front_right_out);
+    pwm_br = convert_power_to_pwm(back_right_out);
 
     // Clamp the duty cycles
-    front_left_out  = clamp_pwm_duty(pwm_fl, min_pwm_duty, max_pwm_duty);
-    back_left_out   = clamp_pwm_duty(pwm_bl, min_pwm_duty, max_pwm_duty);
-    front_right_out = clamp_pwm_duty(pwm_fr, min_pwm_duty, max_pwm_duty);
-    back_right_out  = clamp_pwm_duty(pwm_br, min_pwm_duty, max_pwm_duty);
+    pwm_fl = clamp_pwm_duty(pwm_fl, min_pwm_duty, max_pwm_duty);
+    pwm_bl = clamp_pwm_duty(pwm_bl, min_pwm_duty, max_pwm_duty);
+    pwm_fr = clamp_pwm_duty(pwm_fr, min_pwm_duty, max_pwm_duty);
+    pwm_br = clamp_pwm_duty(pwm_br, min_pwm_duty, max_pwm_duty);
 
     if (is_pid_debug)
     {
@@ -352,27 +439,54 @@ void loop() {
       Serial.print(" BR: ");
       Serial.println(back_right_out);
     }
-
-    // Motor outputs
-    analogWrite(front_left_motor, front_left_out);
-    analogWrite(back_left_motor, back_left_out);
-    analogWrite(front_right_motor, front_right_out);
-    analogWrite(back_right_motor, back_right_out);
   }
   // Otherwise output the idle (motors off) duty cycle.
   else
   {
-    analogWrite(front_left_motor, idle_out);
-    analogWrite(back_left_motor, idle_out);
-    analogWrite(front_right_motor, idle_out);
-    analogWrite(back_right_motor, idle_out);
+    front_left_out = 0.0;
+    back_left_out = 0.0;
+    front_right_out = 0.0;
+    back_right_out = 0.0;
+
+    pwm_fl = idle_out;
+    pwm_bl = idle_out;
+    pwm_fr = idle_out;
+    pwm_br = idle_out;
+
+    // Reset the PIDs
+    roll_pid.reset();
+    pitch_pid.reset();
+    yaw_pid.reset();
   }
+
+  // Motor outputs
+  analogWrite(front_left_motor, pwm_fl);
+  analogWrite(back_left_motor, pwm_bl);
+  analogWrite(front_right_motor, pwm_fr);
+  analogWrite(back_right_motor, pwm_br);
 
   if (is_scope_debug)
   {
     int scope_input = analogRead(scope_pin);
-//    Serial.print("Scope:");
     Serial.println(scope_input);
+  }
+
+  // Logging
+  if (is_logging_available)
+  {
+    // const char* version of the log filename
+      const char* logfile = const_cast<const char *>(log_file_name);
+
+    // Create a data string
+    String data = String(millis()) + "," + String(is_crashed) + "," + String(roll) + "," + String(pitch) + "," + String(yaw);
+    data += "," + String(throttle) + "," + String(roll_output) + "," + String(pitch_output) + "," + String(yaw_output);
+    data += "," + String(front_left_out) + "," + String(back_left_out) + "," + String(front_right_out) + "," + String(back_right_out);
+    data += "," + String(pwm_fl) + "," + String(pwm_bl) + "," + String(pwm_fr) + "," + String(pwm_br);
+
+    // Open the file, write a new line and then close.
+    File log_file = SD.open(logfile, FILE_WRITE);
+    log_file.println(data);
+    log_file.close();
   }
   
 
