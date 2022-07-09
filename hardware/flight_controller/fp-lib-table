@@ -1,4 +1,5 @@
 (fp_lib_table
   (lib (name "Teensy")(type "KiCad")(uri "/home/justin/quadrotor/hardware/kicad_libraries/teensy.pretty-master")(options "")(descr ""))
   (lib (name "SCR")(type "KiCad")(uri "/home/justin/quadrotor/hardware/kicad_libraries/SCR_KiCAD_Lib-master/SCR_KiCAD_Lib.pretty")(options "")(descr ""))
+  (lib (name "KleiCad")(type "KiCad")(uri "/home/justin/quadrotor/hardware/kicad_libraries/kleicad-lib/kleicad-lib.pretty")(options "")(descr ""))
 )

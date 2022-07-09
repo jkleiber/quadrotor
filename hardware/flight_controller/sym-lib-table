@@ -1,4 +1,5 @@
 (sym_lib_table
   (lib (name "Teensy")(type "Legacy")(uri "/home/justin/quadrotor/hardware/kicad_libraries/teensy_library-master/teensy.lib")(options "")(descr ""))
   (lib (name "SCR")(type "Legacy")(uri "/home/justin/quadrotor/hardware/kicad_libraries/SCR_KiCAD_Lib-master/SCR_KiCAD_Lib.lib")(options "")(descr ""))
+  (lib (name "KleiCad")(type "KiCad")(uri "/home/justin/quadrotor/hardware/kicad_libraries/kleicad-lib/kleicad.kicad_sym")(options "")(descr ""))
 )

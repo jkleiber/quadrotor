@@ -1,0 +1,3 @@
+[submodule "hardware/kicad_libraries/kleicad-lib"]
+	path = hardware/kicad_libraries/kleicad-lib
+	url = git@github.com:jkleiber/kleicad-lib.git
