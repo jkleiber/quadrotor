@@ -10,6 +10,15 @@
 
 #define LOG_FN_LEN 20
 
+float deg_to_rad(float deg)
+{
+  return deg * PI / 180.0;
+}
+float rad_to_det(float rad)
+{
+  return rad * 180.0 / PI;
+}
+
 // IBus Interface
 IBusBM ibus;
 
@@ -18,22 +27,22 @@ int channel_values[6];
 
 // SD card logging
 const int sd_chip_select = BUILTIN_SDCARD;
-char log_base_name[] = "flight_";
-char log_file_name[LOG_FN_LEN];
+char log_base_name[] = "flight_\0";
+char log_file_name[LOG_FN_LEN] = {'\0'};
 int flight_num = 0;
 String log_headers = "t,is_crashed,roll,pitch,yaw,throttle,roll_pid_out,pitch_pid_out,yaw_pid_out,motor_fl,motor_bl,motor_fr,motor_br,pwm_fl,pwm_bl,pwm_fr,pwm_br";
 bool is_logging_available = false;
 
 // Debugging
 bool is_rc_debug = false;
-bool is_imu_debug = true;
+bool is_imu_debug = false;
 bool is_pid_debug = false;
 bool is_scope_debug = false;
 
 // Crash detection
 bool is_crashed = false;
-float roll_limit = 90;
-float pitch_limit = 90;
+float roll_limit = deg_to_rad(90);
+float pitch_limit = deg_to_rad(90);
 
 // Scope Pin
 const int scope_pin = A14;
@@ -157,14 +166,7 @@ int clamp_pwm_duty(int duty, int min_duty, int max_duty)
   return duty;
 }
 
-float deg_to_rad(float deg)
-{
-  return deg * PI / 180.0;
-}
-float rad_to_det(float rad)
-{
-  return rad * 180.0 / PI;
-}
+
 
 // Find yaw to be an angle offset relative to the yaw setpoint
 // This is to maintain transitioning from the simulator until the
@@ -236,9 +238,13 @@ int get_flight_number()
     itoa(i, buf, 10);
 
     // Make the name based on the other log files
-    char name[20];
+    char name[20]= {'\0'};
+    Serial.print(name);
+    Serial.print("\t");
     strcat(name, log_base_name);
     strcat(name, buf);
+    Serial.print("Checking: ");
+    Serial.println(name);
 
     // If the name isn't taken, then set it.
     // Also, only allow logging if a file name exists
@@ -261,10 +267,7 @@ int get_flight_number()
 void setup() 
 {
   // Set up USB Serial for debugging
-  if (is_rc_debug || is_imu_debug || is_pid_debug || is_scope_debug)
-  {
-    Serial.begin(115200);
-  }
+  Serial.begin(115200);
 
   if (!bno.begin())
   {
@@ -301,6 +304,12 @@ void setup()
       log_file.println(log_headers);
       log_file.close();
     }
+    Serial.print("Logging enabled! Log file: ");
+    Serial.println(log_file_name);
+  }
+  else
+  {
+    Serial.println("SD Card failed to load! Logging is not enabled.");
   }
   
   // Set up the IBusBM Serial interface.
