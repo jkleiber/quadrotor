@@ -374,7 +374,7 @@ void loop() {
   // Set the roll, pitch and yaw.
   // Note: this depends on the orientation of the BNO055 in the quadcopter itself.
   // Modify as needed to achieve the correct orientation.
-  roll = -1.0*event.orientation.z;
+  roll = event.orientation.z;
   pitch = -1.0*event.orientation.y;
   yaw = event.orientation.x;
 
