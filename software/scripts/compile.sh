@@ -5,6 +5,7 @@ cd "$(dirname "$0")"
 SCRIPTS_DIR="$(pwd)"
 COMPILE_WD="$(pwd)/../build"
 CONFIG_WD="$(pwd)/../config"
+SIM_SCRIPTS_DIR="$(pwd)/../../simulation/scripts"
 
 # Change to build directory
 cd $COMPILE_WD
@@ -36,7 +37,7 @@ then
 fi
 
 # Compile the simulator plugins
-${SCRIPTS_DIR}/compile_sim_plugins.sh
+${SIM_SCRIPTS_DIR}/compile_sim_plugins.sh
 if [ $? -ne 0 ]
 then
     echo "Error: Simulator plugins make failed!"

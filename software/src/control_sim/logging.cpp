@@ -2,13 +2,15 @@
 
 void Logging::init(std::string filename)
 {
-    file_.open(filename);
+    active_ = true;
+    file_.open(filename, std::ofstream::out | std::ofstream::trunc);
 }
 
 void Logging::log_headers(std::string headers)
 {
     // Remove whitespace from headers
-    headers.erase(std::remove_if(headers.begin(), headers.end(), isspace), headers.end());
+    headers.erase(std::remove_if(headers.begin(), headers.end(), isspace),
+                  headers.end());
     std::cout << headers << std::endl;
 
     // Print header row to file
@@ -35,7 +37,7 @@ void Logging::log_vector_xd(Eigen::VectorXd x)
 
     // Convert the vector to a comma separated string.
     std::string vector_str = "";
-    for(int i = 0; i < v_size; ++i)
+    for (int i = 0; i < v_size; ++i)
     {
         vector_str += std::to_string(x(i));
         if (i < (v_size - 1))
@@ -48,7 +50,18 @@ void Logging::log_vector_xd(Eigen::VectorXd x)
     this->log_csv(vector_str);
 }
 
-Logging::~Logging()
+void Logging::logging_active(bool *active)
+{
+    if (active != nullptr)
+    {
+        *active = active_;
+    }
+}
+
+void Logging::close_log()
 {
     file_.close();
+    active_ = false;
 }
+
+Logging::~Logging() { file_.close(); }

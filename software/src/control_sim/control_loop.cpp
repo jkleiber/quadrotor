@@ -23,11 +23,23 @@ void ControlLoop::init()
     yaw_pid.begin(0, 0.1, 0.001, 0.05);
     yaw_pid.setOutputRange(-0.2, 0.2);
 
+    // Set up logging
+    bool is_log_active = false;
+    ctrl_log.logging_active(&is_log_active);
+    if (is_log_active)
+    {
+        ctrl_log.close_log();
+    }
+
+    // TODO: time based logging
+    ctrl_log.init("ctrl_log.csv");
+
     // Set up csv logging headers
     ctrl_log.log_headers("motor_fr, motor_bl, motor_fl, motor_br");
 }
 
-Eigen::VectorXd ControlLoop::run_loop(Eigen::VectorXd x, Eigen::VectorXd setpoints)
+Eigen::VectorXd ControlLoop::run_loop(Eigen::VectorXd x,
+                                      Eigen::VectorXd setpoints)
 {
     // Setpoints correspond to states directly
     Eigen::VectorXd error = setpoints - x;
@@ -53,15 +65,18 @@ Eigen::VectorXd ControlLoop::run_loop(Eigen::VectorXd x, Eigen::VectorXd setpoin
     double yaw_target = setpoints(11);
     double yaw_output = yaw_pid.update(yaw_target, yaw);
 
-
     // Motor throttle vector
     Eigen::VectorXd motor_pows = Eigen::VectorXd::Zero(4);
 
     // Throttle allocation for each motor
-    motor_pows(2) = throttle - roll_output + pitch_output + yaw_output; // front left
-    motor_pows(1) = throttle - roll_output - pitch_output - yaw_output; // back left
-    motor_pows(0) = throttle + roll_output + pitch_output - yaw_output; // front right
-    motor_pows(3) = throttle + roll_output - pitch_output + yaw_output; // back right
+    motor_pows(2) =
+        throttle - roll_output + pitch_output + yaw_output; // front left
+    motor_pows(1) =
+        throttle - roll_output - pitch_output - yaw_output; // back left
+    motor_pows(0) =
+        throttle + roll_output + pitch_output - yaw_output; // front right
+    motor_pows(3) =
+        throttle + roll_output - pitch_output + yaw_output; // back right
 
     // Ensure each motor has non-negative output
     for (int i = 0; i < 4; ++i)

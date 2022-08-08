@@ -2,7 +2,7 @@
 
 # Change to scripts directory and run relative to it
 cd "$(dirname "$0")"
-CONTROL_SIM_BIN="$(pwd)/../build/src/control_sim"
+CONTROL_SIM_BIN="$(pwd)/../build/apps"
 
 
 # Change to the robot binaries directory and run the simulator code
