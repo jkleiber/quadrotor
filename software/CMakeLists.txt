@@ -8,6 +8,12 @@ project(
     DESCRIPTION "Control system design application"
     LANGUAGES CXX)
 
+# Do static linking
+# set(CMAKE_CXX_STANDARD_LIBRARIES "-static-libgcc -static-libstdc++ -lwsock32 -lws2_32 ${CMAKE_CXX_STANDARD_LIBRARIES}")
+# set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -Wl,-Bstatic,--whole-archive -lwinpthread -Wl,--no-whole-archive")
+# set(CMAKE_CXX_STANDARD_LIBRARIES "-static-libgcc -static-libstdc++ ${CMAKE_CXX_STANDARD_LIBRARIES}")
+set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -static")
+
 # Only do these if this is the main project, and not if it is included through
 # add_subdirectory
 if(CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME)

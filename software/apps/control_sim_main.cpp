@@ -7,7 +7,8 @@
 #include "control_sim/control_sim_loop.h"
 #include "control_sim/events.h"
 
-#include <eigen3/Eigen/Dense>
+#include <Eigen/Dense>
+#include "SDL.h"
 
 int main(int argc, char **argv)
 {

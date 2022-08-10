@@ -5,7 +5,7 @@
 #include <iostream>
 #include <string>
 
-#include <eigen3/Eigen/Dense>
+#include <Eigen/Dense>
 
 #include "control_sim/sim_clock.h"
 

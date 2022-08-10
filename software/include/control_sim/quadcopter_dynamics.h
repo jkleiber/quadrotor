@@ -1,7 +1,7 @@
 #ifndef QUADCOPTER_DYNAMICS_H
 #define QUADCOPTER_DYNAMICS_H
 
-#include <eigen3/Eigen/Dense>
+#include <Eigen/Dense>
 #include <iostream>
 #include <math.h>
 #include <random>

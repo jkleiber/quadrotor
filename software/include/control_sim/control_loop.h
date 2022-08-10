@@ -1,7 +1,7 @@
 #ifndef CONTROL_LOOP_H
 #define CONTROL_LOOP_H
 
-#include <eigen3/Eigen/Dense>
+#include <Eigen/Dense>
 
 #include "control_sim/logging.h"
 #include "control_sim/pid_controller.h"
