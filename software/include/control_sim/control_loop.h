@@ -3,6 +3,9 @@
 
 #include <Eigen/Dense>
 
+#include "imgui.h"
+
+#include "control_sim/events.h"
 #include "control_sim/logging.h"
 #include "control_sim/pid_controller.h"
 #include "control_sim/sim_clock.h"
@@ -22,6 +25,8 @@ public:
 
     // Given state and targets, control the quadcopter
     Eigen::VectorXd run_loop(Eigen::VectorXd x, Eigen::VectorXd setpoints);
+
+    bool UpdateParams();
 
 private:
     // Timing

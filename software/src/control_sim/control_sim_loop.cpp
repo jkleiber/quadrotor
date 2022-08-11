@@ -55,6 +55,10 @@ bool ControlSimLoop::UpdateSim()
     {
         RunSimLoop();
     }
+    else
+    {
+        ctrl.UpdateParams();
+    }
 
     // Show the plots
     View();

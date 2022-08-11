@@ -90,3 +90,34 @@ Eigen::VectorXd ControlLoop::run_loop(Eigen::VectorXd x,
     // Set throttle
     return motor_pows;
 }
+
+bool ControlLoop::UpdateParams()
+{
+    bool is_open = false;
+    ImGui::Begin("Control Parameters", &is_open);
+    ImGui::Spacing();
+    if (ImGui::BeginTabBar("Control Tuning"))
+    {
+        if (ImGui::BeginTabItem("Controllers"))
+        {
+            if (ImGui::CollapsingHeader("Roll PID"))
+            {
+            }
+            if (ImGui::CollapsingHeader("Pitch PID"))
+            {
+            }
+            if (ImGui::CollapsingHeader("Yaw PID"))
+            {
+            }
+            if (ImGui::CollapsingHeader("Height PID"))
+            {
+            }
+            ImGui::EndTabItem();
+        }
+        ImGui::EndTabBar();
+    }
+
+    ImGui::End();
+
+    return true;
+}
