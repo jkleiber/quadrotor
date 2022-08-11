@@ -5,6 +5,8 @@
 
 #include "control_sim/control_loop.h"
 #include "control_sim/events.h"
+#include "control_sim/math_utils.h"
+#include "control_sim/plotting.h"
 #include "control_sim/quadcopter_dynamics.h"
 #include "control_sim/sim_clock.h"
 
@@ -38,4 +40,9 @@ private:
 
     // Printing
     double prev_print_time;
+
+    // Plotting
+    Plotting::ScrollingBuffer roll_chart;
+    Plotting::ScrollingBuffer pitch_chart;
+    Plotting::ScrollingBuffer yaw_chart;
 };

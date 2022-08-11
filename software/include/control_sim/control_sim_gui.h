@@ -4,6 +4,7 @@
 #include "imgui.h"
 #include "imgui_impl_opengl3.h"
 #include "imgui_impl_sdl.h"
+#include "implot.h"
 
 #include <SDL.h>
 #if defined(IMGUI_IMPL_OPENGL_ES2)
@@ -24,6 +25,7 @@ public:
 
     bool InitGui();
     bool UpdateGui();
+    bool Render();
     bool CloseGui();
 
     ~GuiManager() { CloseGui(); }

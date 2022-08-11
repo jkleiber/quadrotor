@@ -55,6 +55,14 @@ bool ControlSimLoop::UpdateSim()
 
 bool ControlSimLoop::RunSimLoop()
 {
+    // Print periodically while the simulation runs
+    if (clk_->get_time() - prev_print_time > 1.0)
+    {
+        prev_print_time = clk_->get_time();
+        std::cout << "t=" << prev_print_time << "\troll=" << x(9)
+                  << " pitch=" << x(10) << " yaw=" << x(11) << std::endl;
+    }
+
     // Setpoints
     // Maintain level flight while taking off
     Eigen::VectorXd setpoints = Eigen::VectorXd::Zero(12);
@@ -69,16 +77,21 @@ bool ControlSimLoop::RunSimLoop()
     // Get state variables
     x = quadcopter.get_state();
 
+    // Update time
+    float t = clk_->get_time();
+
+    // Update the scrolling buffer for RPY states
+    roll_chart.AddPoint(t, Utils::RadToDeg(x(9)));
+    pitch_chart.AddPoint(t, Utils::RadToDeg(x(10)));
+    yaw_chart.AddPoint(t, Utils::RadToDeg(x(11)));
+
+    // Plot the scrolling charts
+    roll_chart.Plot(t);
+    pitch_chart.Plot(t);
+    yaw_chart.Plot(t);
+
     // Increment time
     clk_->increment();
-
-    // Print periodically while the simulation runs
-    if (clk_->get_time() - prev_print_time > 1.0)
-    {
-        prev_print_time = clk_->get_time();
-        std::cout << "t=" << prev_print_time << "\troll=" << x(9)
-                  << " pitch=" << x(10) << " yaw=" << x(11) << std::endl;
-    }
 
     return true;
 }

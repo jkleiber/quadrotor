@@ -62,6 +62,9 @@ bool GuiManager::InitGui()
     ImGui_ImplSDL2_InitForOpenGL(window, gl_context);
     ImGui_ImplOpenGL3_Init(glsl_version);
 
+    // Setup ImPlot context
+    ImPlot::CreateContext();
+
     return true;
 }
 
@@ -70,6 +73,7 @@ bool GuiManager::UpdateGui()
     // Get I/O
     ImGuiIO &io = ImGui::GetIO();
 
+    // Process SDL events.
     SDL_Event event;
     while (SDL_PollEvent(&event))
     {
@@ -87,14 +91,23 @@ bool GuiManager::UpdateGui()
     ImGui_ImplSDL2_NewFrame();
     ImGui::NewFrame();
 
-    ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
-
     bool sim_control_active = false;
     ImGui::Begin("Simulation Control", &sim_control_active);
     gui_events_->start_sim = ImGui::Button("Start");
     gui_events_->stop_sim = ImGui::Button("Stop");
     gui_events_->reset_sim = ImGui::Button("Reset");
     ImGui::End();
+
+    return true;
+}
+
+bool GuiManager::Render()
+{
+    // Get I/O
+    ImGuiIO &io = ImGui::GetIO();
+
+    // Clear color
+    ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
 
     // Rendering
     ImGui::Render();

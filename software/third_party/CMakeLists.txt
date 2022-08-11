@@ -31,3 +31,20 @@ target_include_directories(IMGUI
 # OpenGL
 find_package(OpenGL REQUIRED)
 target_link_libraries(IMGUI PUBLIC SDL2-static ${CMAKE_DL_LIBS} ${OPENGL_LIBRARIES})
+
+# =================== ImPlot ===================
+set(IMPLOT_DIR ${CMAKE_CURRENT_SOURCE_DIR}/implot)
+add_library(IMPLOT STATIC)
+
+target_sources(IMPLOT
+    PRIVATE
+    ${IMPLOT_DIR}/implot_demo.cpp
+    ${IMPLOT_DIR}/implot_items.cpp
+    ${IMPLOT_DIR}/implot.cpp
+)
+
+target_include_directories(IMPLOT
+    PUBLIC ${IMPLOT_DIR}/
+)
+
+target_link_libraries(IMPLOT PUBLIC IMGUI)

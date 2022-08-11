@@ -25,7 +25,7 @@ else()
 endif(WIN32)
 
 # This depends on Eigen and imgui
-target_link_libraries(control_sim_lib PUBLIC Eigen3::Eigen IMGUI)
+target_link_libraries(control_sim_lib PUBLIC Eigen3::Eigen IMGUI IMPLOT)
 
 # All users of this library will need at least C++17
 target_compile_features(control_sim_lib PUBLIC cxx_std_17)
