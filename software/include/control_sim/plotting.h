@@ -12,7 +12,7 @@ class ScrollingBuffer
 
 public:
     ScrollingBuffer(std::string name = "ScrollPlot", std::string label = "",
-                    bool is_shaded = false, int max_size = 2000)
+                    bool is_shaded = false, int max_size = 20000)
     {
         // Memory
         max_size_ = max_size;
@@ -26,12 +26,15 @@ public:
         // Plotting features
         name_ = name;
         label_ = label;
+        history_ = 10.0;
         is_shaded_ = is_shaded;
     }
-    void Init(std::string name, std::string label, bool is_shaded = false)
+    void Init(std::string name, std::string label, float history = 10.0,
+              bool is_shaded = false)
     {
         name_ = name;
         label_ = label;
+        history_ = history;
         is_shaded_ = is_shaded;
     }
     void SetYLimits(float ymin, float ymax)
@@ -48,6 +51,11 @@ public:
             data_[offset_] = ImVec2(x, y);
             offset_ = (offset_ + 1) % max_size_;
         }
+    }
+    void Reset()
+    {
+        Erase();
+        data_.reserve(max_size_);
     }
     void Erase()
     {
@@ -103,8 +111,8 @@ private:
 
     // Plotting features
     std::string name_;
-    bool is_shaded_;
     float history_;
+    bool is_shaded_;
 };
 
 } // namespace Plotting

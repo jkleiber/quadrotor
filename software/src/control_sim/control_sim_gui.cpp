@@ -98,6 +98,8 @@ bool GuiManager::UpdateGui()
     gui_events_->reset_sim = ImGui::Button("Reset");
     ImGui::End();
 
+    // ImPlot::ShowDemoWindow();
+
     return true;
 }
 

@@ -22,6 +22,8 @@ public:
     bool InitSim();
     bool UpdateSim();
     bool RunSimLoop();
+    bool View();
+    bool ResetPlots();
 
 private:
     // Simulation state

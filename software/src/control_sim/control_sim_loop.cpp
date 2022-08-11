@@ -23,6 +23,11 @@ bool ControlSimLoop::InitSim()
     quadcopter.init(x);
     ctrl.init();
 
+    // Initialize plotting
+    roll_chart.Init("Roll", "Roll");
+    pitch_chart.Init("Pitch", "Pitch");
+    yaw_chart.Init("Yaw", "Yaw");
+
     return true;
 }
 
@@ -42,6 +47,7 @@ bool ControlSimLoop::UpdateSim()
         // Resetting should stop the sim.
         is_running = false;
         InitSim();
+        ResetPlots();
     }
 
     // Run the simulator if it is on.
@@ -49,6 +55,9 @@ bool ControlSimLoop::UpdateSim()
     {
         RunSimLoop();
     }
+
+    // Show the plots
+    View();
 
     return true;
 }
@@ -77,9 +86,20 @@ bool ControlSimLoop::RunSimLoop()
     // Get state variables
     x = quadcopter.get_state();
 
+    // Increment time
+    clk_->increment();
+
+    return true;
+}
+
+bool ControlSimLoop::View()
+{
     // Update time
     float t = clk_->get_time();
 
+    bool rpy_plots_active = false;
+    ImGui::Begin("RPY Plots", &rpy_plots_active);
+    ImGui::Spacing();
     // Update the scrolling buffer for RPY states
     roll_chart.AddPoint(t, Utils::RadToDeg(x(9)));
     pitch_chart.AddPoint(t, Utils::RadToDeg(x(10)));
@@ -89,9 +109,16 @@ bool ControlSimLoop::RunSimLoop()
     roll_chart.Plot(t);
     pitch_chart.Plot(t);
     yaw_chart.Plot(t);
+    ImGui::End();
 
-    // Increment time
-    clk_->increment();
+    return true;
+}
+
+bool ControlSimLoop::ResetPlots()
+{
+    roll_chart.Reset();
+    pitch_chart.Reset();
+    yaw_chart.Reset();
 
     return true;
 }
