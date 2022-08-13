@@ -8,6 +8,9 @@ bool ControlSimLoop::InitSim()
     // Set to not running
     is_running = false;
 
+    // The simulation is in its initial state
+    is_initial = true;
+
     // Previous print at -100 to print initial conditions
     prev_print_time = -100.0;
 
@@ -21,7 +24,7 @@ bool ControlSimLoop::InitSim()
 
     // Initialize subsystems
     quadcopter.init(x);
-    ctrl.init();
+    ctrl.Init();
 
     // Initialize plotting
     roll_chart.Init("Roll", "Roll");
@@ -41,23 +44,31 @@ bool ControlSimLoop::UpdateSim()
     else if (gui_events_->start_sim)
     {
         is_running = true;
+
+        // Simulator is not in initial state anymore.
+        is_initial = false;
     }
     else if (gui_events_->reset_sim)
     {
         // Resetting should stop the sim.
         is_running = false;
+        is_initial = true;
         InitSim();
         ResetPlots();
     }
+   
+    // Update the parameters if the sim is in the initial state.
+    ctrl.UpdateParams(is_initial);
 
     // Run the simulator if it is on.
     if (is_running)
     {
         RunSimLoop();
-    }
-    else
+    } 
+    else if (is_initial)
     {
-        ctrl.UpdateParams();
+        // If the simulator is in the initial condition, update the PID gains.
+        ctrl.IdleLoop();
     }
 
     // Show the plots
@@ -82,7 +93,7 @@ bool ControlSimLoop::RunSimLoop()
     setpoints(8) = 1.0; // 1 meter height
 
     // Control loop
-    u = ctrl.run_loop(x, setpoints);
+    u = ctrl.RunLoop(x, setpoints);
 
     // Quadcopter dynamics
     quadcopter.update_dynamics(u);

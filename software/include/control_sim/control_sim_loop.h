@@ -28,6 +28,7 @@ public:
 private:
     // Simulation state
     bool is_running;
+    bool is_initial;
 
     // Vehicle state
     Eigen::VectorXd x;
