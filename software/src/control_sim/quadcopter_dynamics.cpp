@@ -210,6 +210,11 @@ bool QuadcopterDynamics::UpdateParams(bool is_enabled)
 
 Eigen::VectorXd QuadcopterDynamics::get_state() { return this->x; }
 
+void QuadcopterDynamics::IdleLoop()
+{
+    SetVehicleParams();
+}
+
 void QuadcopterDynamics::SetVehicleParams()
 {
     // Force and moment constants. F = K_f w^2, M = K_b w^2
@@ -227,11 +232,14 @@ void QuadcopterDynamics::SetVehicleParams()
     // Based on nothing but the feeling that torque of the props is much smaller
     // than the force of the props, we divide K_f by some factor to get K_m
     K_m = K_f / Kf_divisor_;
+
+    // Save the parameters that are currently set.
+    SaveParams();
 }
 
 void QuadcopterDynamics::LoadDefaultParams()
 {
-        // Set the mass
+    // Set the mass
     m = 1.642; // kg
 
     // Set gravity
@@ -269,4 +277,53 @@ void QuadcopterDynamics::LoadDefaultParams()
     // Arm length
     dx_arm = 0.097;
     dy_arm = 0.15; // m
+}
+
+void QuadcopterDynamics::SaveParams()
+{
+    std::string param_string = ""
+    "// Set the mass\n"
+    "m = " + std::to_string(m) + "; // kg\n"
+    "\n"
+    "// Set gravity\n"
+    "g = " + std::to_string(g) + ";\n"
+    "\n"
+    "// Set the inertia\n"
+    "Ixx = " + std::to_string(Ixx) + "; // kg/m^2\n"
+    "Iyy = " + std::to_string(Iyy) + "; // kg/m^2\n"
+    "Izz = " + std::to_string(Izz) + "; // kg/m^2\n"
+    "\n"
+    "// Limit the motor's slew rate\n"
+    "motor_slew_rate = " + std::to_string(motor_slew_rate) + "; // Limit to changes of 40% every 0.01 sec\n"
+    "\n"
+    "// Force and moment constants. F = K_f w^2, M = K_b w^2\n"
+    "// TODO: This is arbitrary, but sort of based on the motor specs\n"
+    "// Max force is 1.522 kg for a 5.1x3.1x3 propeller. This assumes 16V when we\n"
+    "// have 14.8V equipped. Let's take 1.522 * 14.8 / 16 = 1.40785 kg to be max\n"
+    "// pull. (Force = 1.40785 * 9.81 = 13.811).\n"
+    "max_motor_force = " + std::to_string(max_motor_force) + ";\n"
+    "\n"
+    "// Max RPM (no-load) is 2750 KV * 14.8V = 40,700 RPM -> 4262 rad/s.\n"
+    "// Assuming a load makes for 80% max speed -> 3409.6 rad/s\n"
+    "max_omega = " + std::to_string(max_omega) + ";\n"
+    "\n"
+    "// Based on nothing but the feeling that torque of the props is much smaller\n"
+    "// than the force of the props, we divide K_f by 20 to get K_m\n"
+    "Kf_divisor_ = " + std::to_string(Kf_divisor_) + ";\n"
+    "\n"
+    "// Simplify Ixy, Ixz, Iyz = 0 since they are all very small\n"
+    "Ixy = " + std::to_string(Ixy) + ";\n"
+    "Ixz = " + std::to_string(Ixz) + ";\n"
+    "Iyz = " + std::to_string(Iyz) + ";\n"
+    "\n"
+    "// Arm length\n"
+    "dx_arm = " + std::to_string(dx_arm) + ";\n"
+    "dy_arm = " + std::to_string(dy_arm) + "; // m\n";
+
+    // Save this string to the quadcopter parameters file (to load as default via copy-paste later.)
+    // Gains export to TOML.
+    // TODO: import from TOML
+    quadcopter_param_file.open("quadcopter.toml", std::ofstream::out | std::ofstream::trunc);
+    quadcopter_param_file << param_string << std::flush;
+    quadcopter_param_file.close();
 }

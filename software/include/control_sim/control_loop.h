@@ -1,8 +1,9 @@
 #ifndef CONTROL_LOOP_H
 #define CONTROL_LOOP_H
 
-#include <Eigen/Dense>
+#include <fstream>
 
+#include <Eigen/Dense>
 #include "imgui.h"
 
 #include "control_sim/events.h"

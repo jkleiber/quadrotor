@@ -84,6 +84,7 @@ bool ControlSimLoop::UpdateSim()
     {
         // If the simulator is in the initial condition, update the PID gains.
         ctrl.IdleLoop();
+        quadcopter.IdleLoop();
     }
 
     // Show the plots

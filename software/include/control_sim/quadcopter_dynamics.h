@@ -1,12 +1,13 @@
 #ifndef QUADCOPTER_DYNAMICS_H
 #define QUADCOPTER_DYNAMICS_H
 
-#include <Eigen/Dense>
+#include <fstream>
 #include <iostream>
 #include <math.h>
 #include <random>
 #include <string>
 
+#include <Eigen/Dense>
 #include "imgui.h"
 
 #include "control_sim/logging.h"
@@ -35,6 +36,8 @@ public:
     // Update the dynamics (discrete)
     void update_dynamics(Eigen::VectorXd u0);
 
+    // Allow for the GUI to update parameters
+    void IdleLoop();
     bool UpdateParams(bool is_enabled);
 
     // Get the current quadcopter state
