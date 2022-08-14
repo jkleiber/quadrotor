@@ -90,61 +90,53 @@ Eigen::VectorXd ControlLoop::RunLoop(Eigen::VectorXd x,
 
 bool ControlLoop::UpdateParams(bool enabled)
 {
-    bool is_open = false;
-    ImGui::Begin("Control Parameters", &is_open);
-    ImGui::Spacing();
-
     // If the simulation is running, disable gain selection
     if (!enabled)
         ImGui::BeginDisabled();
 
-    if (ImGui::BeginTabBar("Control Tuning"))
+    // Add a tab to the TabBar
+    // Note: there must be a BeginTabBar before this is called.
+    if (ImGui::BeginTabItem("Controllers"))
     {
-        if (ImGui::BeginTabItem("Controllers"))
+        if (ImGui::CollapsingHeader("Roll PID"))
         {
-            if (ImGui::CollapsingHeader("Roll PID"))
-            {
-                ImGui::InputScalar("Roll Kp", ImGuiDataType_Double, &roll_gains.kp, NULL);
-                ImGui::InputScalar("Roll Ki", ImGuiDataType_Double, &roll_gains.ki, NULL);
-                ImGui::InputScalar("Roll Kd", ImGuiDataType_Double, &roll_gains.kd, NULL);
-                ImGui::InputScalar("Roll Min Output", ImGuiDataType_Double, &roll_gains.min_out, NULL);
-                ImGui::InputScalar("Roll Max Output", ImGuiDataType_Double, &roll_gains.max_out, NULL);
-            }
-            if (ImGui::CollapsingHeader("Pitch PID"))
-            {
-                ImGui::InputScalar("Pitch Kp", ImGuiDataType_Double, &pitch_gains.kp, NULL);
-                ImGui::InputScalar("Pitch Ki", ImGuiDataType_Double, &pitch_gains.ki, NULL);
-                ImGui::InputScalar("Pitch Kd", ImGuiDataType_Double, &pitch_gains.kd, NULL);
-                ImGui::InputScalar("Pitch Min Output", ImGuiDataType_Double, &pitch_gains.min_out, NULL);
-                ImGui::InputScalar("Pitch Max Output", ImGuiDataType_Double, &pitch_gains.max_out, NULL);
-            }
-            if (ImGui::CollapsingHeader("Yaw PID"))
-            {
-                ImGui::InputScalar("Yaw Kp", ImGuiDataType_Double, &yaw_gains.kp, NULL);
-                ImGui::InputScalar("Yaw Ki", ImGuiDataType_Double, &yaw_gains.ki, NULL);
-                ImGui::InputScalar("Yaw Kd", ImGuiDataType_Double, &yaw_gains.kd, NULL);
-                ImGui::InputScalar("Yaw Min Output", ImGuiDataType_Double, &yaw_gains.min_out, NULL);
-                ImGui::InputScalar("Yaw Max Output", ImGuiDataType_Double, &yaw_gains.max_out, NULL);
-            }
-            if (ImGui::CollapsingHeader("Height PID"))
-            {
-                ImGui::InputScalar("Height Kp", ImGuiDataType_Double, &height_gains.kp, NULL);
-                ImGui::InputScalar("Height Ki", ImGuiDataType_Double, &height_gains.ki, NULL);
-                ImGui::InputScalar("Height Kd", ImGuiDataType_Double, &height_gains.kd, NULL);
-                ImGui::InputScalar("Height Kf", ImGuiDataType_Double, &height_gains.kf, NULL);
-                ImGui::InputScalar("Height Min Output", ImGuiDataType_Double, &height_gains.min_out, NULL);
-                ImGui::InputScalar("Height Max Output", ImGuiDataType_Double, &height_gains.max_out, NULL);
-            }
-            ImGui::EndTabItem();
+            ImGui::InputScalar("Roll Kp", ImGuiDataType_Double, &roll_gains.kp, NULL);
+            ImGui::InputScalar("Roll Ki", ImGuiDataType_Double, &roll_gains.ki, NULL);
+            ImGui::InputScalar("Roll Kd", ImGuiDataType_Double, &roll_gains.kd, NULL);
+            ImGui::InputScalar("Roll Min Output", ImGuiDataType_Double, &roll_gains.min_out, NULL);
+            ImGui::InputScalar("Roll Max Output", ImGuiDataType_Double, &roll_gains.max_out, NULL);
         }
-        ImGui::EndTabBar();
+        if (ImGui::CollapsingHeader("Pitch PID"))
+        {
+            ImGui::InputScalar("Pitch Kp", ImGuiDataType_Double, &pitch_gains.kp, NULL);
+            ImGui::InputScalar("Pitch Ki", ImGuiDataType_Double, &pitch_gains.ki, NULL);
+            ImGui::InputScalar("Pitch Kd", ImGuiDataType_Double, &pitch_gains.kd, NULL);
+            ImGui::InputScalar("Pitch Min Output", ImGuiDataType_Double, &pitch_gains.min_out, NULL);
+            ImGui::InputScalar("Pitch Max Output", ImGuiDataType_Double, &pitch_gains.max_out, NULL);
+        }
+        if (ImGui::CollapsingHeader("Yaw PID"))
+        {
+            ImGui::InputScalar("Yaw Kp", ImGuiDataType_Double, &yaw_gains.kp, NULL);
+            ImGui::InputScalar("Yaw Ki", ImGuiDataType_Double, &yaw_gains.ki, NULL);
+            ImGui::InputScalar("Yaw Kd", ImGuiDataType_Double, &yaw_gains.kd, NULL);
+            ImGui::InputScalar("Yaw Min Output", ImGuiDataType_Double, &yaw_gains.min_out, NULL);
+            ImGui::InputScalar("Yaw Max Output", ImGuiDataType_Double, &yaw_gains.max_out, NULL);
+        }
+        if (ImGui::CollapsingHeader("Height PID"))
+        {
+            ImGui::InputScalar("Height Kp", ImGuiDataType_Double, &height_gains.kp, NULL);
+            ImGui::InputScalar("Height Ki", ImGuiDataType_Double, &height_gains.ki, NULL);
+            ImGui::InputScalar("Height Kd", ImGuiDataType_Double, &height_gains.kd, NULL);
+            ImGui::InputScalar("Height Kf", ImGuiDataType_Double, &height_gains.kf, NULL);
+            ImGui::InputScalar("Height Min Output", ImGuiDataType_Double, &height_gains.min_out, NULL);
+            ImGui::InputScalar("Height Max Output", ImGuiDataType_Double, &height_gains.max_out, NULL);
+        }
+        ImGui::EndTabItem();
     }
 
     // End the disabled part if gains should not be changed
     if (!enabled)
         ImGui::EndDisabled();
-
-    ImGui::End();
 
     return true;
 }

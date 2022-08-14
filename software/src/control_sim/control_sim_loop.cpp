@@ -57,8 +57,23 @@ bool ControlSimLoop::UpdateSim()
         ResetPlots();
     }
    
-    // Update the parameters if the sim is in the initial state.
-    ctrl.UpdateParams(is_initial);
+
+    // GUI for parameter tuning
+    bool is_open = true;
+    ImGui::Begin("Simulation Parameters", &is_open);
+    ImGui::Spacing();
+    if (ImGui::BeginTabBar("Parameters"))
+    {
+        // Update the parameters if the sim is in the initial state.
+        ctrl.UpdateParams(is_initial);
+        quadcopter.UpdateParams(is_initial);
+
+        // End the tab bar
+        ImGui::EndTabBar();
+    }
+
+    // End parameter tuning GUI
+    ImGui::End();
 
     // Run the simulator if it is on.
     if (is_running)

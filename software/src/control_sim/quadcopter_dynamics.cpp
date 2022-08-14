@@ -7,8 +7,15 @@ void QuadcopterDynamics::init(Eigen::VectorXd x0)
 
     this->dt_ = clk_->get_dt();
 
+    // On the first run, load the defaults for now
+    if (is_default) 
+    {
+        LoadDefaultParams();
+        is_default = false;
+    }
+
     // Load the vehicle parameters
-    set_vehicle_params();
+    SetVehicleParams();
 
     // Motors initial conditions (assumed to be 0)
     this->x_motors = Eigen::VectorXd::Zero(4);
@@ -155,11 +162,76 @@ void QuadcopterDynamics::update_dynamics(Eigen::VectorXd u0)
     // }
 }
 
+bool QuadcopterDynamics::UpdateParams(bool is_enabled)
+{
+    // If the simulation is running, disable gain selection
+    if (!is_enabled)
+        ImGui::BeginDisabled();
+
+    // Add a tab to the TabBar
+    // Note: there must be a BeginTabBar before this is called.
+    if (ImGui::BeginTabItem("Vehicle"))
+    {
+        if (ImGui::CollapsingHeader("Mass and Inertials"))
+        {
+            ImGui::InputScalar("Mass (kg)", ImGuiDataType_Double, &m, NULL);
+            ImGui::InputScalar("Ixx (kg/m^2)", ImGuiDataType_Double, &Ixx, NULL);
+            ImGui::InputScalar("Iyy (kg/m^2)", ImGuiDataType_Double, &Iyy, NULL);
+            ImGui::InputScalar("Izz (kg/m^2)", ImGuiDataType_Double, &Izz, NULL);
+        }
+        if (ImGui::CollapsingHeader("Dimensions"))
+        {
+            ImGui::InputScalar("Arm dx (m)", ImGuiDataType_Double, &dx_arm, NULL);
+            ImGui::InputScalar("Arm dy (m)", ImGuiDataType_Double, &dy_arm, NULL);
+        }
+        if (ImGui::CollapsingHeader("Limits"))
+        {
+            ImGui::InputScalar("Max Motor Force (N)", ImGuiDataType_Double, &max_motor_force, NULL);
+            ImGui::InputScalar("Max Ang. Vel (rad/s)", ImGuiDataType_Double, &max_omega, NULL);
+            ImGui::InputScalar("Max Slew Rate (%/s)", ImGuiDataType_Double, &motor_slew_rate, NULL);
+        }
+        if (ImGui::CollapsingHeader("Dynamic Constants"))
+        {
+            ImGui::InputScalar("Kf divisor", ImGuiDataType_Double, &Kf_divisor_, NULL);
+        }
+        if (ImGui::CollapsingHeader("Environment"))
+        {
+            ImGui::InputScalar("Gravity (m/s^2)", ImGuiDataType_Double, &g, NULL);
+        }
+        ImGui::EndTabItem();
+    }
+
+    // End the disabled part if gains should not be changed
+    if (!is_enabled)
+        ImGui::EndDisabled();
+
+    return true;
+}
+
 Eigen::VectorXd QuadcopterDynamics::get_state() { return this->x; }
 
-void QuadcopterDynamics::set_vehicle_params()
+void QuadcopterDynamics::SetVehicleParams()
 {
-    // Set the mass
+    // Force and moment constants. F = K_f w^2, M = K_b w^2
+    // TODO: This is arbitrary, but sort of based on the motor specs
+    // Max force is 1.522 kg for a 5.1x3.1x3 propeller. This assumes 16V when we
+    // have 14.8V equipped. Let's take 1.522 * 14.8 / 16 = 1.40785 kg to be max
+    // pull. (Force = 1.40785 * 9.81 = 13.811).
+
+    // Max RPM (no-load) is 2750 KV * 14.8V = 40,700 RPM -> 4262 rad/s.
+    // Assuming a load makes for 80% max speed -> 3409.6 rad/s
+
+    // Thus, Kf = max_force / max_omega^2
+    K_f = max_motor_force / (max_omega * max_omega);
+
+    // Based on nothing but the feeling that torque of the props is much smaller
+    // than the force of the props, we divide K_f by some factor to get K_m
+    K_m = K_f / Kf_divisor_;
+}
+
+void QuadcopterDynamics::LoadDefaultParams()
+{
+        // Set the mass
     m = 1.642; // kg
 
     // Set gravity
@@ -185,12 +257,9 @@ void QuadcopterDynamics::set_vehicle_params()
     // Assuming a load makes for 80% max speed -> 3409.6 rad/s
     max_omega = 3409.6;
 
-    // Thus, Kf = max_force / max_omega^2
-    K_f = max_motor_force / (max_omega * max_omega);
-
     // Based on nothing but the feeling that torque of the props is much smaller
     // than the force of the props, we divide K_f by 20 to get K_m
-    K_m = K_f / 20.0;
+    Kf_divisor_ = 20.0;
 
     // Simplify Ixy, Ixz, Iyz = 0 since they are all very small
     Ixy = 0;

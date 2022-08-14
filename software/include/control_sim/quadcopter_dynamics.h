@@ -7,6 +7,8 @@
 #include <random>
 #include <string>
 
+#include "imgui.h"
+
 #include "control_sim/logging.h"
 #include "control_sim/sim_clock.h"
 
@@ -20,7 +22,7 @@ public:
     }
 
     QuadcopterDynamics(Eigen::VectorXd x0, SimClock *clk)
-        : motor_dist(0, 0.5), state_log(clk), clk_(clk)
+        : motor_dist(0, 0.5), state_log(clk), clk_(clk), is_default(true)
     {
         this->init(x0);
     }
@@ -33,6 +35,8 @@ public:
     // Update the dynamics (discrete)
     void update_dynamics(Eigen::VectorXd u0);
 
+    bool UpdateParams(bool is_enabled);
+
     // Get the current quadcopter state
     Eigen::VectorXd get_state();
 
@@ -40,9 +44,6 @@ public:
     std::string state_to_string(Eigen::VectorXd x);
 
 private:
-    // Vehicle parameters
-    void set_vehicle_params();
-
     // States
     Eigen::VectorXd x;
     Eigen::VectorXd x_motors;
@@ -60,6 +61,7 @@ private:
     // Force and moment constants
     double K_f; // Force
     double K_m; // Moment
+    double Kf_divisor_; // Divide 
 
     // Inertia (kg / m^2)
     double Ixx;
@@ -86,6 +88,15 @@ private:
     Logging state_log;
 
     SimClock *const clk_;
+
+    // Parameter management
+    bool is_default;
+    std::ofstream quadcopter_param_file;
+
+    // Vehicle parameters
+    void LoadDefaultParams();
+    void SetVehicleParams();
+    void SaveParams();
 };
 
 #endif
