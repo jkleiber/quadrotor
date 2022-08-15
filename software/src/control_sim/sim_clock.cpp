@@ -11,27 +11,27 @@ void SimClock::InitClock(double dt)
     }
 }
 
-void SimClock::update(double t)
+void SimClock::Update(double t)
 {
     this->t_ = t;
 }
 
-void SimClock::increment()
+void SimClock::Increment()
 {
     this->t_ += dt_;
 }
 
-void SimClock::increment(double dt)
+void SimClock::Increment(double dt)
 {
     this->t_ += dt;
 }
 
-double SimClock::get_time() const
+double SimClock::GetTime() const
 {
     return this->t_;
 }
 
-double SimClock::get_dt() const
+double SimClock::GetDt() const
 {
     return this->dt_;
 }

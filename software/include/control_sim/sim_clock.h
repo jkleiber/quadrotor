@@ -11,15 +11,15 @@ class SimClock
             InitClock(dt);
         }
 
-        // Initialize the clock and the increment
+        // Initialize the clock and the Increment
         void InitClock(double dt);
 
-        void update(double t);
-        void increment();
-        void increment(double dt);
+        void Update(double t);
+        void Increment();
+        void Increment(double dt);
 
-        double get_time() const;
-        double get_dt() const;
+        double GetTime() const;
+        double GetDt() const;
 
     private:
         double t_;

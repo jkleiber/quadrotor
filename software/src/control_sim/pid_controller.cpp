@@ -41,7 +41,7 @@ void PIDController::operator=(const PIDController& pid)
     this->integrator_max = pid.integrator_max;
 }
 
-void PIDController::init()
+void PIDController::Init()
 {
     // Boundary control
     this->high = 1.0;
@@ -68,7 +68,7 @@ void PIDController::init()
  *
  * @param init_state starting state of the system
  */
-void PIDController::begin(float init_state)
+void PIDController::Start(float init_state)
 {
     // PID values
     this->integrator = 0.0;
@@ -92,7 +92,7 @@ void PIDController::begin(float init_state)
  * @param ki integral coefficient
  * @param kd derivative coefficient
  */
-void PIDController::begin(float init_state, float kp, float ki, float kd)
+void PIDController::Start(float init_state, float kp, float ki, float kd)
 {
     // PID values
     this->integrator = 0.0;
@@ -116,10 +116,10 @@ void PIDController::begin(float init_state, float kp, float ki, float kd)
 
 /**
  * @brief Resets the PID controller's state.
- * Note: you must reinitialize the PID with begin() before running it again.
+ * Note: you must reinitialize the PID with Start() before running it again.
  *
  */
-void PIDController::reset()
+void PIDController::Reset()
 {
     // PID values
     this->integrator = 0.0;
@@ -136,7 +136,7 @@ void PIDController::reset()
  *
  * @param is_bounded
  */
-void PIDController::setBounded(bool is_bounded)
+void PIDController::SetBounded(bool is_bounded)
 {
     this->is_bounded = is_bounded;
 }
@@ -148,7 +148,7 @@ void PIDController::setBounded(bool is_bounded)
  * @param lower Lowest allowable output/result
  * @param upper Highest allowable output/result
  */
-void PIDController::setOutputRange(float lower, float upper)
+void PIDController::SetOutputRange(float lower, float upper)
 {
     this->low = lower;
     this->high = upper;
@@ -163,7 +163,7 @@ void PIDController::setOutputRange(float lower, float upper)
  * @param derivative_tol Highest allowed derivative error
  * @param apply_tolerance Enables or disables the tolerances
  */
-void PIDController::setTolerance(float setpoint_tol, float derivative_tol, bool apply_tolerance)
+void PIDController::SetTolerance(float setpoint_tol, float derivative_tol, bool apply_tolerance)
 {
     this->tolerance_enabled = apply_tolerance;
     this->setpoint_tolerance = setpoint_tol;
@@ -178,7 +178,7 @@ void PIDController::setTolerance(float setpoint_tol, float derivative_tol, bool 
  * @param min Minimum value of integrator
  * @param max Maximum value of integrator
  */
-void PIDController::setIntegratorBounds(float min, float max)
+void PIDController::SetIntegratorBounds(float min, float max)
 {
     this->integrator_min = min;
     this->integrator_max = max;
@@ -191,11 +191,11 @@ void PIDController::setIntegratorBounds(float min, float max)
 /**
  * @brief Updates the PID equation and returns the result
  *
- * @param target_state the goal state of the system
+ * @param tarGetState the goal state of the system
  * @param cur_state the current state of the system
  * @return float the output/result/control signal needed to optimize the state
  */
-float PIDController::update(float target_state, float cur_state)
+float PIDController::Update(float tarGetState, float cur_state)
 {
     // Declare local variables
     float P, I, D;
@@ -203,14 +203,14 @@ float PIDController::update(float target_state, float cur_state)
     float slope;
 
     // Get the time step
-    double current_time = clk_->get_time();
+    double current_time = clk_->GetTime();
     this->dt = current_time - last_time;
 
     // Calculate error
-    this->error = target_state - cur_state;
+    this->error = tarGetState - cur_state;
 
     // Integrate error using trapezoidal Riemann sums
-    this->prev_error = target_state - this->last_state;
+    this->prev_error = tarGetState - this->last_state;
     this->integrator += 0.5 * (this->error + this->prev_error) * this->dt;
 
     // Find the slope of the error curve using secant approximation
@@ -240,7 +240,7 @@ float PIDController::update(float target_state, float cur_state)
         result = this->is_bounded ? RLUtil::clamp(P + I + D, this->low, this->high) : (P + I + D);
     }
 
-    // Update timing and increment to the next state
+    // Update timing and Increment to the next state
     this->last_state = cur_state;
     this->last_time = current_time;
 
@@ -254,7 +254,7 @@ float PIDController::update(float target_state, float cur_state)
  *
  * @return float the integrator for the PID
  */
-float PIDController::getIntegratorValue()
+float PIDController::GetIntegratorValue()
 {
     return this->integrator;
 }

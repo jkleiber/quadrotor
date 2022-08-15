@@ -17,34 +17,31 @@ class QuadcopterDynamics
 {
 public:
     QuadcopterDynamics(SimClock *clk)
-        : motor_dist(0, 0.5), state_log(clk), clk_(clk)
+        : state_log(clk), clk_(clk), is_default(true)
     {
-        this->init(Eigen::VectorXd::Zero(12));
+        this->Init(Eigen::VectorXd::Zero(12));
     }
 
     QuadcopterDynamics(Eigen::VectorXd x0, SimClock *clk)
-        : motor_dist(0, 0.5), state_log(clk), clk_(clk), is_default(true)
+        : state_log(clk), clk_(clk), is_default(true)
     {
-        this->init(x0);
+        this->Init(x0);
     }
 
-    void init(Eigen::VectorXd x0);
+    void Init(Eigen::VectorXd x0);
 
     // Compute the forces for each motor
-    void get_motor_forces(Eigen::VectorXd u);
+    void GetMotorForces(Eigen::VectorXd u);
 
     // Update the dynamics (discrete)
-    void update_dynamics(Eigen::VectorXd u0);
+    void UpdateDynamics(Eigen::VectorXd u0);
 
     // Allow for the GUI to update parameters
     void IdleLoop();
     bool UpdateParams(bool is_enabled);
 
     // Get the current quadcopter state
-    Eigen::VectorXd get_state();
-
-    // Convert state to string
-    std::string state_to_string(Eigen::VectorXd x);
+    Eigen::VectorXd GetState();
 
 private:
     // States
@@ -85,7 +82,8 @@ private:
 
     // Disturbances
     std::default_random_engine motor_gen;
-    std::normal_distribution<double> motor_dist;
+    double dist_mean;
+    double dist_stddev;
 
     // State logging
     Logging state_log;

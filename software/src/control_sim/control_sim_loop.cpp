@@ -3,7 +3,7 @@
 bool ControlSimLoop::InitSim()
 {
     // Set time to 0.
-    clk_->update(0.0);
+    clk_->Update(0.0);
 
     // Set to not running
     is_running = false;
@@ -23,10 +23,12 @@ bool ControlSimLoop::InitSim()
     u = Eigen::VectorXd::Zero(4);
 
     // Initialize subsystems
-    quadcopter.init(x);
+    quadcopter.Init(x);
     ctrl.Init();
 
     // Initialize plotting
+    xy_chart.Init("XY", "XY");
+    height_chart.Init("Height", "Height");
     roll_chart.Init("Roll", "Roll");
     pitch_chart.Init("Pitch", "Pitch");
     yaw_chart.Init("Yaw", "Yaw");
@@ -96,9 +98,9 @@ bool ControlSimLoop::UpdateSim()
 bool ControlSimLoop::RunSimLoop()
 {
     // Print periodically while the simulation runs
-    if (clk_->get_time() - prev_print_time > 1.0)
+    if (clk_->GetTime() - prev_print_time > 1.0)
     {
-        prev_print_time = clk_->get_time();
+        prev_print_time = clk_->GetTime();
         std::cout << "t=" << prev_print_time << "\troll=" << x(9)
                   << " pitch=" << x(10) << " yaw=" << x(11) << std::endl;
     }
@@ -112,13 +114,13 @@ bool ControlSimLoop::RunSimLoop()
     u = ctrl.RunLoop(x, setpoints);
 
     // Quadcopter dynamics
-    quadcopter.update_dynamics(u);
+    quadcopter.UpdateDynamics(u);
 
     // Get state variables
-    x = quadcopter.get_state();
+    x = quadcopter.GetState();
 
     // Increment time
-    clk_->increment();
+    clk_->Increment();
 
     return true;
 }
@@ -126,9 +128,9 @@ bool ControlSimLoop::RunSimLoop()
 bool ControlSimLoop::View()
 {
     // Update time
-    float t = clk_->get_time();
+    float t = clk_->GetTime();
 
-    bool rpy_plots_active = false;
+    bool rpy_plots_active = true;
     ImGui::Begin("RPY Plots", &rpy_plots_active);
     ImGui::Spacing();
     // Update the scrolling buffer for RPY states
@@ -142,11 +144,26 @@ bool ControlSimLoop::View()
     yaw_chart.Plot(t);
     ImGui::End();
 
+    // Height and XY position
+    bool xyz_plots_active = true;
+    ImGui::Begin("XYZ Plots", &xyz_plots_active);
+    ImGui::Spacing();
+    // Update the scrolling buffer for XYZ states
+    height_chart.AddPoint(t, x(8));
+    xy_chart.AddPoint(x(6),x(7));
+
+    // Plot the scrolling charts
+    height_chart.Plot(t);
+    xy_chart.Plot();
+    ImGui::End();
+
     return true;
 }
 
 bool ControlSimLoop::ResetPlots()
 {
+    xy_chart.Reset();
+    height_chart.Reset();
     roll_chart.Reset();
     pitch_chart.Reset();
     yaw_chart.Reset();

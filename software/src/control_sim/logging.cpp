@@ -1,12 +1,12 @@
 #include "control_sim/logging.h"
 
-void Logging::init(std::string filename)
+void Logging::Init(std::string filename)
 {
     active_ = true;
     file_.open(filename, std::ofstream::out | std::ofstream::trunc);
 }
 
-void Logging::log_headers(std::string headers)
+void Logging::LogHeaders(std::string headers)
 {
     // Remove whitespace from headers
     headers.erase(std::remove_if(headers.begin(), headers.end(), isspace),
@@ -18,10 +18,10 @@ void Logging::log_headers(std::string headers)
     file_ << hdr_row << std::flush;
 }
 
-void Logging::log_csv(std::string data)
+void Logging::LogCsv(std::string data)
 {
     // Get time
-    double t = clk_->get_time();
+    double t = clk_->GetTime();
 
     // Convert time to string
     std::string t_str = std::to_string(t);
@@ -31,7 +31,7 @@ void Logging::log_csv(std::string data)
     file_ << csv_row << std::flush;
 }
 
-void Logging::log_vector_xd(Eigen::VectorXd x)
+void Logging::LogVectorXd(Eigen::VectorXd x)
 {
     int v_size = x.size();
 
@@ -47,10 +47,10 @@ void Logging::log_vector_xd(Eigen::VectorXd x)
     }
 
     // Log this to the CSV
-    this->log_csv(vector_str);
+    this->LogCsv(vector_str);
 }
 
-void Logging::logging_active(bool *active)
+void Logging::LoggingActive(bool *active)
 {
     if (active != nullptr)
     {
@@ -58,7 +58,7 @@ void Logging::logging_active(bool *active)
     }
 }
 
-void Logging::close_log()
+void Logging::CloseLog()
 {
     file_.close();
     active_ = false;

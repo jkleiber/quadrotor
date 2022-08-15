@@ -45,6 +45,8 @@ private:
     double prev_print_time;
 
     // Plotting
+    Plotting::DynamicGraph xy_chart;
+    Plotting::ScrollingBuffer height_chart;
     Plotting::ScrollingBuffer roll_chart;
     Plotting::ScrollingBuffer pitch_chart;
     Plotting::ScrollingBuffer yaw_chart;

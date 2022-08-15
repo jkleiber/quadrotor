@@ -16,17 +16,17 @@ void ControlLoop::Init()
 
     // Set up logging
     bool is_log_active = false;
-    ctrl_log.logging_active(&is_log_active);
+    ctrl_log.LoggingActive(&is_log_active);
     if (is_log_active)
     {
-        ctrl_log.close_log();
+        ctrl_log.CloseLog();
     }
 
     // TODO: time based logging
-    ctrl_log.init("ctrl_log.csv");
+    ctrl_log.Init("ctrl_log.csv");
 
     // Set up csv logging headers
-    ctrl_log.log_headers("motor_fr, motor_bl, motor_fl, motor_br");
+    ctrl_log.LogHeaders("motor_fr, motor_bl, motor_fl, motor_br");
 }
 
 void ControlLoop::IdleLoop()
@@ -44,23 +44,23 @@ Eigen::VectorXd ControlLoop::RunLoop(Eigen::VectorXd x,
     // Height / Throttle PID
     double height = x(8);
     double height_target = setpoints(8);
-    double throttle = height_pid_ff + height_pid.update(height_target, height);
+    double throttle = height_pid_ff + height_pid.Update(height_target, height);
     throttle = std::min(1.0, std::max(0.0, throttle)); // Ensure between 0 and 1
 
     // Pitch PID
     double pitch = x(10);
     double pitch_target = setpoints(10);
-    double pitch_output = pitch_pid.update(pitch_target, pitch);
+    double pitch_output = pitch_pid.Update(pitch_target, pitch);
 
     // Roll PID
     double roll = x(9);
     double roll_target = setpoints(9);
-    double roll_output = roll_pid.update(roll_target, roll);
+    double roll_output = roll_pid.Update(roll_target, roll);
 
     // Yaw PID
     double yaw = x(11);
     double yaw_target = setpoints(11);
-    double yaw_output = yaw_pid.update(yaw_target, yaw);
+    double yaw_output = yaw_pid.Update(yaw_target, yaw);
 
     // Motor throttle vector
     Eigen::VectorXd motor_pows = Eigen::VectorXd::Zero(4);
@@ -82,7 +82,7 @@ Eigen::VectorXd ControlLoop::RunLoop(Eigen::VectorXd x,
     }
 
     // Log control
-    ctrl_log.log_vector_xd(motor_pows);
+    ctrl_log.LogVectorXd(motor_pows);
 
     // Set throttle
     return motor_pows;
@@ -174,7 +174,7 @@ void ControlLoop::SetDefaultGains()
     height_gains.kf = 0.53;
     height_gains.min_out = -0.1;
     height_gains.max_out = 0.1;
-    // height_pid.begin(0, 0.175, 0.001, 0.05); // Noiseless Height PID
+    // height_pid.Start(0, 0.175, 0.001, 0.05); // Noiseless Height PID
 }
 
 void ControlLoop::ApplyGains()
@@ -183,23 +183,23 @@ void ControlLoop::ApplyGains()
 
     // Init Height PID
     // NOTE: Height PID simulates pilot flying ability for now
-    height_pid.begin(0, height_gains.kp, height_gains.ki, height_gains.kd);
-    height_pid.setOutputRange(height_gains.min_out, height_gains.max_out);
+    height_pid.Start(0, height_gains.kp, height_gains.ki, height_gains.kd);
+    height_pid.SetOutputRange(height_gains.min_out, height_gains.max_out);
 
     // Set feedforward to maintain constant height
     height_pid_ff = height_gains.kf;
 
     // Init roll PID
-    roll_pid.begin(0, roll_gains.kp, roll_gains.ki, roll_gains.kd);
-    roll_pid.setOutputRange(roll_gains.min_out, roll_gains.max_out);
+    roll_pid.Start(0, roll_gains.kp, roll_gains.ki, roll_gains.kd);
+    roll_pid.SetOutputRange(roll_gains.min_out, roll_gains.max_out);
 
     // Init pitch PID
-    pitch_pid.begin(0, pitch_gains.kp, pitch_gains.ki, pitch_gains.kd);
-    pitch_pid.setOutputRange(pitch_gains.min_out, pitch_gains.max_out);
+    pitch_pid.Start(0, pitch_gains.kp, pitch_gains.ki, pitch_gains.kd);
+    pitch_pid.SetOutputRange(pitch_gains.min_out, pitch_gains.max_out);
 
     // Init yaw PID
-    yaw_pid.begin(0, yaw_gains.kp, yaw_gains.ki, yaw_gains.kd);
-    yaw_pid.setOutputRange(yaw_gains.min_out, yaw_gains.max_out);
+    yaw_pid.Start(0, yaw_gains.kp, yaw_gains.ki, yaw_gains.kd);
+    yaw_pid.SetOutputRange(yaw_gains.min_out, yaw_gains.max_out);
 
     // Save the gains
     SaveGains();

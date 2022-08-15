@@ -19,17 +19,17 @@ public:
     ~Logging();
 
     // Initialize logging
-    void init(std::string filename);
+    void Init(std::string filename);
 
-    void log_headers(std::string headers);
-    void log_csv(std::string data);
-    void log_vector_xd(Eigen::VectorXd x);
+    void LogHeaders(std::string headers);
+    void LogCsv(std::string data);
+    void LogVectorXd(Eigen::VectorXd x);
 
     // Tell if logging is active.
-    void logging_active(bool *active);
+    void LoggingActive(bool *active);
 
     // Close logging manually if desired
-    void close_log();
+    void CloseLog();
 
 private:
     // Clock

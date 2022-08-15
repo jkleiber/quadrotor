@@ -1,11 +1,11 @@
 #include "control_sim/quadcopter_dynamics.h"
 
-void QuadcopterDynamics::init(Eigen::VectorXd x0)
+void QuadcopterDynamics::Init(Eigen::VectorXd x0)
 {
     // Initial conditions
     this->x = x0; // Expecting a R^12 vector
 
-    this->dt_ = clk_->get_dt();
+    this->dt_ = clk_->GetDt();
 
     // On the first run, load the defaults for now
     if (is_default) 
@@ -23,17 +23,17 @@ void QuadcopterDynamics::init(Eigen::VectorXd x0)
 
     // Initialize logging
     bool is_log_active = false;
-    state_log.logging_active(&is_log_active);
+    state_log.LoggingActive(&is_log_active);
     if (is_log_active)
     {
-        state_log.close_log();
+        state_log.CloseLog();
     }
     // TODO: time based logging
-    state_log.init("state_log.csv");
-    state_log.log_headers("u, v, w, p, q, r, x, y, z, roll, pitch, yaw");
+    state_log.Init("state_log.csv");
+    state_log.LogHeaders("u, v, w, p, q, r, x, y, z, roll, pitch, yaw");
 }
 
-void QuadcopterDynamics::get_motor_forces(Eigen::VectorXd u)
+void QuadcopterDynamics::GetMotorForces(Eigen::VectorXd u)
 {
     // TODO: add a delay into the motor commands
 
@@ -58,15 +58,18 @@ void QuadcopterDynamics::get_motor_forces(Eigen::VectorXd u)
     // Disturb thrust generated
     for (int i = 0; i < 4; ++i)
     {
+        std::normal_distribution<double> motor_dist(dist_mean, dist_stddev);
+        double dist = motor_dist(motor_gen);
+
         // Disturb
-        new_x_motors(i) += motor_dist(motor_gen);
+        new_x_motors(i) += dist;
     }
 
     this->x_motors = new_x_motors;
     u_prev = u;
 }
 
-void QuadcopterDynamics::update_dynamics(Eigen::VectorXd u0)
+void QuadcopterDynamics::UpdateDynamics(Eigen::VectorXd u0)
 {
     // States
     double u = x(0);
@@ -83,7 +86,7 @@ void QuadcopterDynamics::update_dynamics(Eigen::VectorXd u0)
     double yaw = x(11);
 
     // Compute motor forces from control.
-    this->get_motor_forces(u0);
+    this->GetMotorForces(u0);
 
     // Motor Numbering
     /*
@@ -153,7 +156,7 @@ void QuadcopterDynamics::update_dynamics(Eigen::VectorXd u0)
     this->x = this->x + x_dot * dt_;
 
     // Log the dynamics
-    state_log.log_vector_xd(this->x);
+    state_log.LogVectorXd(this->x);
 
     // Don't allow the drone to fall below the ground
     // if (x(8) < 0)
@@ -197,6 +200,8 @@ bool QuadcopterDynamics::UpdateParams(bool is_enabled)
         if (ImGui::CollapsingHeader("Environment"))
         {
             ImGui::InputScalar("Gravity (m/s^2)", ImGuiDataType_Double, &g, NULL);
+            ImGui::InputScalar("Disturbance Mean", ImGuiDataType_Double, &dist_mean, NULL);
+            ImGui::InputScalar("Disturbance Std. Dev", ImGuiDataType_Double, &dist_stddev, NULL);
         }
         ImGui::EndTabItem();
     }
@@ -208,7 +213,7 @@ bool QuadcopterDynamics::UpdateParams(bool is_enabled)
     return true;
 }
 
-Eigen::VectorXd QuadcopterDynamics::get_state() { return this->x; }
+Eigen::VectorXd QuadcopterDynamics::GetState() { return this->x; }
 
 void QuadcopterDynamics::IdleLoop()
 {
@@ -277,6 +282,10 @@ void QuadcopterDynamics::LoadDefaultParams()
     // Arm length
     dx_arm = 0.097;
     dy_arm = 0.15; // m
+
+    // Disturbances
+    dist_mean = 0.0;
+    dist_stddev = 0.5;
 }
 
 void QuadcopterDynamics::SaveParams()
@@ -318,7 +327,11 @@ void QuadcopterDynamics::SaveParams()
     "\n"
     "// Arm length\n"
     "dx_arm = " + std::to_string(dx_arm) + ";\n"
-    "dy_arm = " + std::to_string(dy_arm) + "; // m\n";
+    "dy_arm = " + std::to_string(dy_arm) + "; // m\n"
+    "\n"
+    "// Disturbances\n"
+    "dist_mean = " + std::to_string(dist_mean) + ";\n"
+    "dist_stddev = " + std::to_string(dist_stddev) + ";\n";
 
     // Save this string to the quadcopter parameters file (to load as default via copy-paste later.)
     // Gains export to TOML.

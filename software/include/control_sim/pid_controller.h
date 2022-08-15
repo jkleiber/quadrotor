@@ -16,34 +16,34 @@ class PIDController
         // Constructors
         PIDController(SimClock *clk) : clk_(clk)
         {
-            this->init();
-            this->begin(0.0);
+            this->Init();
+            this->Start(0.0);
         }
 
         PIDController(SimClock *clk, float init_state, float kp, float ki, float kd) : clk_(clk)
         {
-            this->init();
-            this->begin(init_state, kp, ki, kd);
+            this->Init();
+            this->Start(init_state, kp, ki, kd);
         }
 
         // Copy assignment
         void operator=(const PIDController& pid);
 
         // Init
-        void init();
+        void Init();
 
         // Setters
-        void begin(float init_state);
-        void begin(float init_state, float kp, float ki, float kd);
-        void reset();
-        void setBounded(bool bounded);
-        void setOutputRange(float lower, float upper);
-        void setTolerance(float setpoint_tol, float derivative_tol, bool apply_tolerance);
-        void setIntegratorBounds(float min, float max);
+        void Start(float init_state);
+        void Start(float init_state, float kp, float ki, float kd);
+        void Reset();
+        void SetBounded(bool bounded);
+        void SetOutputRange(float lower, float upper);
+        void SetTolerance(float setpoint_tol, float derivative_tol, bool apply_tolerance);
+        void SetIntegratorBounds(float min, float max);
 
         // Getters
-        float update(float target_state, float cur_state);
-        float getIntegratorValue();
+        float Update(float tarGetState, float cur_state);
+        float GetIntegratorValue();
 
     private:
         // PID values
