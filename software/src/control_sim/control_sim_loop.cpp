@@ -58,7 +58,6 @@ bool ControlSimLoop::UpdateSim()
         InitSim();
         ResetPlots();
     }
-   
 
     // GUI for parameter tuning
     bool is_open = true;
@@ -66,8 +65,10 @@ bool ControlSimLoop::UpdateSim()
     ImGui::Spacing();
     if (ImGui::BeginTabBar("Parameters"))
     {
+        // Allow control updates even if the sim is stopped.
+        ctrl.UpdateParams(!is_running);
+
         // Update the parameters if the sim is in the initial state.
-        ctrl.UpdateParams(is_initial);
         quadcopter.UpdateParams(is_initial);
 
         // End the tab bar
@@ -81,7 +82,7 @@ bool ControlSimLoop::UpdateSim()
     if (is_running)
     {
         RunSimLoop();
-    } 
+    }
     else if (is_initial)
     {
         // If the simulator is in the initial condition, update the PID gains.
@@ -150,7 +151,7 @@ bool ControlSimLoop::View()
     ImGui::Spacing();
     // Update the scrolling buffer for XYZ states
     height_chart.AddPoint(t, x(8));
-    xy_chart.AddPoint(x(6),x(7));
+    xy_chart.AddPoint(x(6), x(7));
 
     // Plot the scrolling charts
     height_chart.Plot(t);

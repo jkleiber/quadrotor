@@ -1,5 +1,5 @@
-project(control_sim)
-cmake_minimum_required(VERSION 3.13 FATAL_ERROR)
+
+cmake_minimum_required(VERSION 3.15 FATAL_ERROR)
 
 # find_package(Eigen3 3.3 REQUIRED NO_MODULE)
 file(GLOB HEADER_LIST

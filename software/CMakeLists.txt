@@ -5,7 +5,7 @@ cmake_minimum_required(VERSION 3.15)
 project(
     Quadrotor
     VERSION 0.1
-    DESCRIPTION "Control system design application"
+    DESCRIPTION "Quadrotor"
     LANGUAGES CXX)
 
 # Do static linking
