@@ -1,0 +1,31 @@
+// Roll PID
+roll_gains.kp = 0.100000;
+roll_gains.ki = 0.001000;
+roll_gains.kd = 0.050000;
+roll_gains.kf = 0.000000;
+roll_gains.min_out = -0.200000;
+roll_gains.max_out = 0.200000;
+
+// Pitch PID
+pitch_gains.kp = 0.100000;
+pitch_gains.ki = 0.001000;
+pitch_gains.kd = 0.050000;
+pitch_gains.kf = 0.000000;
+pitch_gains.min_out = -0.200000;
+pitch_gains.max_out = 0.200000;
+
+// Yaw PID
+yaw_gains.kp = 0.100000;
+yaw_gains.ki = 0.001000;
+yaw_gains.kd = 0.050000;
+yaw_gains.kf = 0.000000;
+yaw_gains.min_out = -0.200000;
+yaw_gains.max_out = 0.200000;
+
+// Height PID
+height_gains.kp = 0.100000;
+height_gains.ki = 0.001000;
+height_gains.kd = 0.100000;
+height_gains.kf = 0.530000;
+height_gains.min_out = -0.100000;
+height_gains.max_out = 0.100000;

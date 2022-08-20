@@ -1,0 +1,41 @@
+// Set the mass
+m = 1.642000; // kg
+
+// Set gravity
+g = 9.810000;
+
+// Set the inertia
+Ixx = 0.007000; // kg/m^2
+Iyy = 0.006000; // kg/m^2
+Izz = 0.009000; // kg/m^2
+
+// Limit the motor's slew rate
+motor_slew_rate = 40.000000; // Limit to changes of 40% every 0.01 sec
+
+// Force and moment constants. F = K_f w^2, M = K_b w^2
+// TODO: This is arbitrary, but sort of based on the motor specs
+// Max force is 1.522 kg for a 5.1x3.1x3 propeller. This assumes 16V when we
+// have 14.8V equipped. Let's take 1.522 * 14.8 / 16 = 1.40785 kg to be max
+// pull. (Force = 1.40785 * 9.81 = 13.811).
+max_motor_force = 13.811000;
+
+// Max RPM (no-load) is 2750 KV * 14.8V = 40,700 RPM -> 4262 rad/s.
+// Assuming a load makes for 80% max speed -> 3409.6 rad/s
+max_omega = 3409.600000;
+
+// Based on nothing but the feeling that torque of the props is much smaller
+// than the force of the props, we divide K_f by 20 to get K_m
+Kf_divisor_ = 20.000000;
+
+// Simplify Ixy, Ixz, Iyz = 0 since they are all very small
+Ixy = 0.000000;
+Ixz = 0.000000;
+Iyz = 0.000000;
+
+// Arm length
+dx_arm = 0.097000;
+dy_arm = 0.150000; // m
+
+// Disturbances
+dist_mean = 0.000000;
+dist_stddev = 0.500000;
