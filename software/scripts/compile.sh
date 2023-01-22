@@ -11,7 +11,7 @@ SIM_SCRIPTS_DIR="$(pwd)/../../simulation/scripts"
 cd $COMPILE_WD
 
 # CMake the quadcopter code, exit on failure
-cmake ..
+cmake .. -DCOMPILE_SIMULATION=0
 if [ $? -ne 0 ]
 then
     echo "Error: Quadcopter CMake failed!"
@@ -37,10 +37,10 @@ then
 fi
 
 # Compile the simulator plugins
-${SIM_SCRIPTS_DIR}/compile_sim_plugins.sh
-if [ $? -ne 0 ]
-then
-    echo "Error: Simulator plugins make failed!"
-    exit -1
-fi
+# ${SIM_SCRIPTS_DIR}/compile_sim_plugins.sh
+# if [ $? -ne 0 ]
+# then
+#     echo "Error: Simulator plugins make failed!"
+#     exit -1
+# fi
 

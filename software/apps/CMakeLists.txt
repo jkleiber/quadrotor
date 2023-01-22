@@ -1,6 +1,6 @@
 # #####
 # Compilation Options
-OPTION(COMPILE_SIMULATION "Build the simulated robot code" ON)
+OPTION(COMPILE_SIMULATION "Build the Gazebo simulation robot code" OFF)
 
 # ================= Control Simulation ==================
 add_executable(control_sim control_sim_main.cpp)

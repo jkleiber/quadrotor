@@ -8,7 +8,7 @@ void QuadcopterDynamics::Init(Eigen::VectorXd x0)
     this->dt_ = clk_->GetDt();
 
     // On the first run, load the defaults for now
-    if (is_default) 
+    if (is_default)
     {
         LoadDefaultParams();
         is_default = false;
@@ -178,30 +178,42 @@ bool QuadcopterDynamics::UpdateParams(bool is_enabled)
         if (ImGui::CollapsingHeader("Mass and Inertials"))
         {
             ImGui::InputScalar("Mass (kg)", ImGuiDataType_Double, &m, NULL);
-            ImGui::InputScalar("Ixx (kg/m^2)", ImGuiDataType_Double, &Ixx, NULL);
-            ImGui::InputScalar("Iyy (kg/m^2)", ImGuiDataType_Double, &Iyy, NULL);
-            ImGui::InputScalar("Izz (kg/m^2)", ImGuiDataType_Double, &Izz, NULL);
+            ImGui::InputScalar("Ixx (kg/m^2)", ImGuiDataType_Double, &Ixx,
+                               NULL);
+            ImGui::InputScalar("Iyy (kg/m^2)", ImGuiDataType_Double, &Iyy,
+                               NULL);
+            ImGui::InputScalar("Izz (kg/m^2)", ImGuiDataType_Double, &Izz,
+                               NULL);
         }
         if (ImGui::CollapsingHeader("Dimensions"))
         {
-            ImGui::InputScalar("Arm dx (m)", ImGuiDataType_Double, &dx_arm, NULL);
-            ImGui::InputScalar("Arm dy (m)", ImGuiDataType_Double, &dy_arm, NULL);
+            ImGui::InputScalar("Arm dx (m)", ImGuiDataType_Double, &dx_arm,
+                               NULL);
+            ImGui::InputScalar("Arm dy (m)", ImGuiDataType_Double, &dy_arm,
+                               NULL);
         }
         if (ImGui::CollapsingHeader("Limits"))
         {
-            ImGui::InputScalar("Max Motor Force (N)", ImGuiDataType_Double, &max_motor_force, NULL);
-            ImGui::InputScalar("Max Ang. Vel (rad/s)", ImGuiDataType_Double, &max_omega, NULL);
-            ImGui::InputScalar("Max Slew Rate (%/s)", ImGuiDataType_Double, &motor_slew_rate, NULL);
+            ImGui::InputScalar("Max Motor Force (N)", ImGuiDataType_Double,
+                               &max_motor_force, NULL);
+            ImGui::InputScalar("Max Ang. Vel (rad/s)", ImGuiDataType_Double,
+                               &max_omega, NULL);
+            ImGui::InputScalar("Max Slew Rate (%/s)", ImGuiDataType_Double,
+                               &motor_slew_rate, NULL);
         }
         if (ImGui::CollapsingHeader("Dynamic Constants"))
         {
-            ImGui::InputScalar("Kf divisor", ImGuiDataType_Double, &Kf_divisor_, NULL);
+            ImGui::InputScalar("Kf divisor", ImGuiDataType_Double, &Kf_divisor_,
+                               NULL);
         }
         if (ImGui::CollapsingHeader("Environment"))
         {
-            ImGui::InputScalar("Gravity (m/s^2)", ImGuiDataType_Double, &g, NULL);
-            ImGui::InputScalar("Disturbance Mean", ImGuiDataType_Double, &dist_mean, NULL);
-            ImGui::InputScalar("Disturbance Std. Dev", ImGuiDataType_Double, &dist_stddev, NULL);
+            ImGui::InputScalar("Gravity (m/s^2)", ImGuiDataType_Double, &g,
+                               NULL);
+            ImGui::InputScalar("Disturbance Mean", ImGuiDataType_Double,
+                               &dist_mean, NULL);
+            ImGui::InputScalar("Disturbance Std. Dev", ImGuiDataType_Double,
+                               &dist_stddev, NULL);
         }
         ImGui::EndTabItem();
     }
@@ -215,10 +227,7 @@ bool QuadcopterDynamics::UpdateParams(bool is_enabled)
 
 Eigen::VectorXd QuadcopterDynamics::GetState() { return this->x; }
 
-void QuadcopterDynamics::IdleLoop()
-{
-    SetVehicleParams();
-}
+void QuadcopterDynamics::IdleLoop() { SetVehicleParams(); }
 
 void QuadcopterDynamics::SetVehicleParams()
 {
@@ -245,7 +254,7 @@ void QuadcopterDynamics::SetVehicleParams()
 void QuadcopterDynamics::LoadDefaultParams()
 {
     // Set the mass
-    m = 1.642; // kg
+    m = 1.00; // kg
 
     // Set gravity
     g = 9.81;
@@ -290,53 +299,89 @@ void QuadcopterDynamics::LoadDefaultParams()
 
 void QuadcopterDynamics::SaveParams()
 {
-    std::string param_string = ""
-    "// Set the mass\n"
-    "m = " + std::to_string(m) + "; // kg\n"
-    "\n"
-    "// Set gravity\n"
-    "g = " + std::to_string(g) + ";\n"
-    "\n"
-    "// Set the inertia\n"
-    "Ixx = " + std::to_string(Ixx) + "; // kg/m^2\n"
-    "Iyy = " + std::to_string(Iyy) + "; // kg/m^2\n"
-    "Izz = " + std::to_string(Izz) + "; // kg/m^2\n"
-    "\n"
-    "// Limit the motor's slew rate\n"
-    "motor_slew_rate = " + std::to_string(motor_slew_rate) + "; // Limit to changes of 40% every 0.01 sec\n"
-    "\n"
-    "// Force and moment constants. F = K_f w^2, M = K_b w^2\n"
-    "// TODO: This is arbitrary, but sort of based on the motor specs\n"
-    "// Max force is 1.522 kg for a 5.1x3.1x3 propeller. This assumes 16V when we\n"
-    "// have 14.8V equipped. Let's take 1.522 * 14.8 / 16 = 1.40785 kg to be max\n"
-    "// pull. (Force = 1.40785 * 9.81 = 13.811).\n"
-    "max_motor_force = " + std::to_string(max_motor_force) + ";\n"
-    "\n"
-    "// Max RPM (no-load) is 2750 KV * 14.8V = 40,700 RPM -> 4262 rad/s.\n"
-    "// Assuming a load makes for 80% max speed -> 3409.6 rad/s\n"
-    "max_omega = " + std::to_string(max_omega) + ";\n"
-    "\n"
-    "// Based on nothing but the feeling that torque of the props is much smaller\n"
-    "// than the force of the props, we divide K_f by 20 to get K_m\n"
-    "Kf_divisor_ = " + std::to_string(Kf_divisor_) + ";\n"
-    "\n"
-    "// Simplify Ixy, Ixz, Iyz = 0 since they are all very small\n"
-    "Ixy = " + std::to_string(Ixy) + ";\n"
-    "Ixz = " + std::to_string(Ixz) + ";\n"
-    "Iyz = " + std::to_string(Iyz) + ";\n"
-    "\n"
-    "// Arm length\n"
-    "dx_arm = " + std::to_string(dx_arm) + ";\n"
-    "dy_arm = " + std::to_string(dy_arm) + "; // m\n"
-    "\n"
-    "// Disturbances\n"
-    "dist_mean = " + std::to_string(dist_mean) + ";\n"
-    "dist_stddev = " + std::to_string(dist_stddev) + ";\n";
+    std::string param_string =
+        ""
+        "// Set the mass\n"
+        "m = " +
+        std::to_string(m) +
+        "; // kg\n"
+        "\n"
+        "// Set gravity\n"
+        "g = " +
+        std::to_string(g) +
+        ";\n"
+        "\n"
+        "// Set the inertia\n"
+        "Ixx = " +
+        std::to_string(Ixx) +
+        "; // kg/m^2\n"
+        "Iyy = " +
+        std::to_string(Iyy) +
+        "; // kg/m^2\n"
+        "Izz = " +
+        std::to_string(Izz) +
+        "; // kg/m^2\n"
+        "\n"
+        "// Limit the motor's slew rate\n"
+        "motor_slew_rate = " +
+        std::to_string(motor_slew_rate) +
+        "; // Limit to changes of 40% every 0.01 sec\n"
+        "\n"
+        "// Force and moment constants. F = K_f w^2, M = K_b w^2\n"
+        "// TODO: This is arbitrary, but sort of based on the motor specs\n"
+        "// Max force is 1.522 kg for a 5.1x3.1x3 propeller. This assumes 16V "
+        "when we\n"
+        "// have 14.8V equipped. Let's take 1.522 * 14.8 / 16 = 1.40785 kg to "
+        "be max\n"
+        "// pull. (Force = 1.40785 * 9.81 = 13.811).\n"
+        "max_motor_force = " +
+        std::to_string(max_motor_force) +
+        ";\n"
+        "\n"
+        "// Max RPM (no-load) is 2750 KV * 14.8V = 40,700 RPM -> 4262 rad/s.\n"
+        "// Assuming a load makes for 80% max speed -> 3409.6 rad/s\n"
+        "max_omega = " +
+        std::to_string(max_omega) +
+        ";\n"
+        "\n"
+        "// Based on nothing but the feeling that torque of the props is much "
+        "smaller\n"
+        "// than the force of the props, we divide K_f by 20 to get K_m\n"
+        "Kf_divisor_ = " +
+        std::to_string(Kf_divisor_) +
+        ";\n"
+        "\n"
+        "// Simplify Ixy, Ixz, Iyz = 0 since they are all very small\n"
+        "Ixy = " +
+        std::to_string(Ixy) +
+        ";\n"
+        "Ixz = " +
+        std::to_string(Ixz) +
+        ";\n"
+        "Iyz = " +
+        std::to_string(Iyz) +
+        ";\n"
+        "\n"
+        "// Arm length\n"
+        "dx_arm = " +
+        std::to_string(dx_arm) +
+        ";\n"
+        "dy_arm = " +
+        std::to_string(dy_arm) +
+        "; // m\n"
+        "\n"
+        "// Disturbances\n"
+        "dist_mean = " +
+        std::to_string(dist_mean) +
+        ";\n"
+        "dist_stddev = " +
+        std::to_string(dist_stddev) + ";\n";
 
-    // Save this string to the quadcopter parameters file (to load as default via copy-paste later.)
-    // Gains export to TOML.
+    // Save this string to the quadcopter parameters file (to load as default
+    // via copy-paste later.) Gains export to TOML.
     // TODO: import from TOML
-    quadcopter_param_file.open("quadcopter.toml", std::ofstream::out | std::ofstream::trunc);
+    quadcopter_param_file.open("quadcopter.toml",
+                               std::ofstream::out | std::ofstream::trunc);
     quadcopter_param_file << param_string << std::flush;
     quadcopter_param_file.close();
 }

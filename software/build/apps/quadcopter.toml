@@ -1,5 +1,5 @@
 // Set the mass
-m = 1.642000; // kg
+m = 1.000000; // kg
 
 // Set gravity
 g = 9.810000;
@@ -38,4 +38,4 @@ dy_arm = 0.150000; // m
 
 // Disturbances
 dist_mean = 0.000000;
-dist_stddev = 0.500000;
+dist_stddev = 0.400000;

@@ -38,6 +38,7 @@ bool is_rc_debug = false;
 bool is_imu_debug = false;
 bool is_pid_debug = false;
 bool is_scope_debug = false;
+bool is_pwm_debug = false;
 
 // Crash detection
 bool is_crashed = false;
@@ -415,6 +416,8 @@ void loop() {
   float roll_output = roll_pid.update(roll_setpoint, roll);
   float pitch_output = pitch_pid.update(pitch_setpoint, pitch);
   float yaw_output = yaw_pid.update(yaw_setpoint, yaw);
+  // HACK: Turn off yaw_output for now to see what happens
+  yaw_output = 0.0;
 
   // Don't do anything unless the throttle is outside a deadband.
   if (throttle >= throttle_cutoff && !is_crashed)
@@ -466,6 +469,17 @@ void loop() {
     roll_pid.reset();
     pitch_pid.reset();
     yaw_pid.reset();
+  }
+
+  if (is_pwm_debug) {
+      Serial.print("FL: ");
+      Serial.print(pwm_fl);
+      Serial.print(" BL: ");
+      Serial.print(pwm_bl);
+      Serial.print(" FR: ");
+      Serial.print(pwm_fr);
+      Serial.print(" BR: ");
+      Serial.println(pwm_br);
   }
 
   // Motor outputs
