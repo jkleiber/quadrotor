@@ -6,7 +6,7 @@ void PIDController::Reset()
     integrator_ = 0.0;
 }
 
-float PIDController::PID(float &setpoint, float &x)
+float PIDController::PID(const float &setpoint, const float &x)
 {
     // Compute error.
     float error = setpoint - x;
@@ -52,7 +52,8 @@ float PIDController::PID(float &setpoint, float &x)
     return output;
 }
 
-float PIDController::PIDRate(float &setpoint, float &x, float &x_rate)
+float PIDController::PIDRate(const float &setpoint, const float &x,
+                             const float &x_rate)
 {
     // Compute error.
     float error = setpoint - x;
@@ -91,7 +92,7 @@ float PIDController::PIDRate(float &setpoint, float &x, float &x_rate)
     return output;
 }
 
-void PIDController::Clamp(float *val, float &min, float &max)
+void PIDController::Clamp(float *val, const float &min, const float &max)
 {
     // Ensure that the value is within the constraints.
     if (*val < min)
@@ -104,13 +105,13 @@ void PIDController::Clamp(float *val, float &min, float &max)
     }
 }
 
-void PIDController::SetOutputLimits(float &min, float &max)
+void PIDController::SetOutputLimits(const float &min, const float &max)
 {
     output_min_ = min;
     output_max_ = max;
 }
 
-void PIDController::SetIntegratorLimits(float &min, float &max)
+void PIDController::SetIntegratorLimits(const float &min, const float &max)
 {
     int_min_ = min;
     int_max_ = max;

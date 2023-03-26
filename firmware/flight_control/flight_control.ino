@@ -25,8 +25,9 @@ char log_base_name[] = "flight_\0";
 char log_file_name[LOG_FN_LEN] = {'\0'};
 int flight_num = 0;
 String log_headers =
-    "t,is_crashed,roll,pitch,yaw,p,q,r,throttle,roll_pid_out,pitch_pid_out,yaw_"
-    "pid_out,motor_fl,motor_bl,motor_fr,motor_br,pwm_fl,pwm_bl,pwm_fr,pwm_br";
+    "t,is_crashed,roll,pitch,yaw,p,q,r,throttle,roll_cmd,pitch_cmd,yaw_cmd,"
+    "roll_pid_out,pitch_pid_out,yaw_pid_out,motor_fl,motor_bl,motor_fr,motor_"
+    "br,pwm_fl,pwm_bl,pwm_fr,pwm_br";
 bool is_logging_available = false;
 
 // Debugging
@@ -65,7 +66,9 @@ const int min_pwm_duty = (int)(0.051 * (float)max_pwm);
 const int max_pwm_duty = (int)(0.1 * (float)max_pwm);
 
 // RC channels (0-indexed)
-const int throttle_channel = 2; // This is Channel 3 when 1-indexed
+const int kThrottleChannel = 2; // This is Channel 3 when 1-indexed
+const int kPitchChannel = 1;
+const int kRollChannel = 0;
 
 // Throttle cutoff
 // Note: This is equivalent to ~1020 us input on the RC.
@@ -76,21 +79,32 @@ Adafruit_BNO055 bno = Adafruit_BNO055(69, 0x28);
 
 // Motor trim
 // NOTE: this needs to be tuned after ESC calibration
+// TODO: make this a config file or controlled by the RC
 float fl_trim = 0.0;
-float bl_trim = 0.0;
-float fr_trim = 0.05;
-float br_trim = 0.01;
+float bl_trim = 0.05;
+float fr_trim = 0.02;
+float br_trim = 0.05;
+
+// Command limits
+const float kMaxPitch = deg_to_rad(20.0);
+const float kMaxRoll = deg_to_rad(20.0);
+
+// Filter constants
+const float kGyroMix = 0.8;
 
 // States
+// Angles (rad)
 float roll = 0.0;
 float pitch = 0.0;
 float yaw = 0.0;
+// Angular rates (rad/s)
 float roll_rate = 0.0;
 float pitch_rate = 0.0;
 float yaw_rate = 0.0;
 
 // Calibration
 bool is_calibrated = false;
+// Offsets (rad)
 float roll_offset = 0.0;
 float pitch_offset = 0.0;
 
@@ -98,30 +112,50 @@ float pitch_offset = 0.0;
 float roll_setpoint = 0.0;
 float pitch_setpoint = 0.0;
 float yaw_setpoint = 0.0;
+float p_setpoint = 0.0;
+float q_setpoint = 0.0;
+float r_setpoint = 0.0;
 
 // PID Gains
 // Roll
-float roll_kp = 0.05;
-float roll_ki = 0.001;
-float roll_kd = 0.01;
+float roll_kp = 0.15;
+float roll_ki = 0.0009;
+float roll_kd = 0.02;
 // Pitch
-float pitch_kp = 0.07;
+float pitch_kp = 0.5;
 float pitch_ki = 0.001;
-float pitch_kd = 0.01;
+float pitch_kd = 0.06;
 // Yaw
-float yaw_kp = 0.1;
-float yaw_ki = 0.0001;
-float yaw_kd = 0.05;
+float yaw_kp = 0.3;
+float yaw_ki = 0.001;
+float yaw_kd = 0.04;
+// Roll Rate
+float roll_rate_kp = 0.15;
+float roll_rate_ki = 0.0007;
+float roll_rate_kd = 0.015;
+// Pitch Rate
+float pitch_rate_kp = 0.25;
+float pitch_rate_ki = 0.0005;
+float pitch_rate_kd = 0.04;
+// Yaw Rate
+float yaw_rate_kp = 0.25;
+float yaw_rate_ki = 0.001;
+float yaw_rate_kd = 0.03;
 
 // PID output limits
-// This corresponds to a change of ~312 us in the PWM pulse period.
-float pid_lower = -0.2;
-float pid_upper = 0.2;
+float pid_lower = -0.3;
+float pid_upper = 0.3;
 
 // PID Controllers
 PIDController roll_pid = PIDController(roll_kp, roll_ki, roll_kd);
 PIDController pitch_pid = PIDController(pitch_kp, pitch_ki, pitch_kd);
 PIDController yaw_pid = PIDController(yaw_kp, yaw_ki, yaw_kd);
+PIDController roll_rate_pid =
+    PIDController(roll_rate_kp, roll_rate_ki, roll_rate_kd);
+PIDController pitch_rate_pid =
+    PIDController(pitch_rate_kp, pitch_rate_ki, pitch_rate_kd);
+PIDController yaw_rate_pid =
+    PIDController(yaw_rate_kp, yaw_rate_ki, yaw_rate_kd);
 
 // Motor power
 float front_left_out = 0.0;
@@ -146,6 +180,24 @@ float convert_rc_throttle_to_power(int throttle)
         ((float)throttle - (float)pwm_min_duty_us) / (float)pwm_duty_range_us;
 
     return power;
+}
+
+// Convert RC throttle to percent power.
+float convert_rc_stick_to_range(int &stick, const float &min, const float &max)
+{
+    // Get the period range
+    int pwm_duty_range_us = pwm_max_duty_us - pwm_min_duty_us;
+
+    // Convert the throttle into percentage of the maximum control duty cycle
+    // This will return a value between 0 and 1 for the iFly RC.
+    float range_pct =
+        ((float)stick - (float)pwm_min_duty_us) / (float)pwm_duty_range_us;
+
+    // Convert the range pct into the range
+    float range_width = max - min;
+    float val = min + (range_width * range_pct);
+
+    return val;
 }
 
 // Convert the percent power for a motor to PWM duty cycle.
@@ -199,12 +251,12 @@ float augment_yaw(float yaw_setpoint, float yaw)
     float delta_2 = 0.0;
 
     // Find the two differences if yaw setpoint is larger than yaw
-    if (yaw_setpoint > yaw)
+    if (setpoint_0_360 > yaw)
     {
         // Direct path
-        delta_1 = -1.0 * (yaw_setpoint - yaw);
+        delta_1 = -1.0 * (setpoint_0_360 - yaw);
         // Going around the wrap-around point
-        delta_2 = (360 - yaw_setpoint) + yaw;
+        delta_2 = (360 - setpoint_0_360) + yaw;
 
         // flip the direction
         if (abs(delta_2) < abs(delta_1))
@@ -215,9 +267,9 @@ float augment_yaw(float yaw_setpoint, float yaw)
     else
     {
         // Direct path
-        delta_1 = yaw - yaw_setpoint;
+        delta_1 = yaw - setpoint_0_360;
         // Going around the wrap-around point
-        delta_2 = (360 - yaw) + yaw_setpoint;
+        delta_2 = (360 - yaw) + setpoint_0_360;
 
         // flip the direction if the second way is shorter
         if (abs(delta_2) < abs(delta_1))
@@ -340,6 +392,9 @@ void setup()
     roll_pid.SetOutputLimits(pid_lower, pid_upper);
     pitch_pid.SetOutputLimits(pid_lower, pid_upper);
     yaw_pid.SetOutputLimits(pid_lower, pid_upper);
+    roll_rate_pid.SetOutputLimits(pid_lower, pid_upper);
+    pitch_rate_pid.SetOutputLimits(pid_lower, pid_upper);
+    yaw_rate_pid.SetOutputLimits(pid_lower, pid_upper);
 
     // Wait for BNO055 to initialize
     delay(5000);
@@ -380,38 +435,25 @@ void loop()
     sensors_event_t pqr_event;
     bno.getEvent(&pqr_event, Adafruit_BNO055::VECTOR_GYROSCOPE);
 
-    // If the quadcopter hasn't been calibrated, then set the roll and pitch
-    // offsets. This runs at the start before flying.
-    if (!is_calibrated)
-    {
-        roll_offset = deg_to_rad(rpy_event.orientation.z);
-        pitch_offset = deg_to_rad(-1.0 * rpy_event.orientation.y);
-
-        // Calibration is set
-        is_calibrated = true;
-    }
-    else
-    {
-        // Set the roll, pitch and yaw.
-        // Note: this depends on the orientation of the BNO055 in the quadcopter
-        // itself. Modify as needed to achieve the correct orientation.
-        roll = rpy_event.orientation.z - roll_offset;
-        pitch = -1.0 * rpy_event.orientation.y - pitch_offset;
-        yaw = rpy_event.orientation.x;
-
-        // Set the angular rates
-        roll_rate = pqr_event.gyro.z;
-        pitch_rate = -1.0 * pqr_event.gyro.y;
-        yaw_rate = pqr_event.gyro.x;
-    }
+    // Set the roll, pitch and yaw. The offsets start at 0, but then are
+    // calibrated once on startup. Note: this depends on the orientation of the
+    // BNO055 in the quadcopter itself. Modify as needed to achieve the correct
+    // orientation.
+    roll = deg_to_rad(rpy_event.orientation.z) - roll_offset;
+    pitch = deg_to_rad(-1.0 * rpy_event.orientation.y) - pitch_offset;
 
     // Compute yaw as the closest angle to the yaw setpoint
     // This also converts yaw to radians
+    yaw = rpy_event.orientation.x;
     yaw = augment_yaw(yaw_setpoint, yaw);
 
-    // Convert roll and pitch to radians
-    roll = deg_to_rad(roll);
-    pitch = deg_to_rad(pitch);
+    // Set the angular rates in rad/s. Low pass filter the input.
+    roll_rate =
+        (1.0 - kGyroMix) * roll_rate + kGyroMix * deg_to_rad(pqr_event.gyro.z);
+    pitch_rate = (1.0 - kGyroMix) * pitch_rate +
+                 kGyroMix * deg_to_rad(-1.0 * pqr_event.gyro.y);
+    yaw_rate =
+        (1.0 - kGyroMix) * yaw_rate + kGyroMix * deg_to_rad(pqr_event.gyro.x);
 
     if (is_imu_debug)
     {
@@ -425,7 +467,11 @@ void loop()
 
     // Convert the rc throttle input to a motor power percentage
     float throttle =
-        convert_rc_throttle_to_power(channel_values[throttle_channel]);
+        convert_rc_throttle_to_power(channel_values[kThrottleChannel]);
+    pitch_setpoint = convert_rc_stick_to_range(channel_values[kPitchChannel],
+                                               -kMaxPitch, kMaxPitch);
+    roll_setpoint = convert_rc_stick_to_range(channel_values[kRollChannel],
+                                              -kMaxRoll, kMaxRoll);
 
     // The quadcopter is crashed if it rolls or pitches too much.
     if (fabs(roll) >= roll_limit || fabs(pitch) >= pitch_limit)
@@ -441,16 +487,44 @@ void loop()
         is_crashed = false;
     }
 
-    // PID control calculations
-    float roll_output = -1.0 * roll_pid.PIDRate(roll_setpoint, roll, roll_rate);
-    float pitch_output = pitch_pid.PIDRate(pitch_setpoint, pitch, pitch_rate);
-    float yaw_output = yaw_pid.PIDRate(yaw_setpoint, yaw, yaw_rate);
-    // HACK: Turn off yaw_output for now to see what happens
-    yaw_output = 0.0;
+    // Outer loop PID controllers
+    // float p_setpoint = -1.0 * roll_pid.PIDRate(roll_setpoint, roll,
+    // roll_rate); float q_setpoint = pitch_pid.PIDRate(pitch_setpoint, pitch,
+    // pitch_rate);
 
-    // Don't do anything unless the throttle is outside a deadband.
-    if (throttle >= throttle_cutoff && !is_crashed && is_calibrated)
+    // PID control calculations
+    float roll_output = -1.0 * roll_rate_pid.PID(p_setpoint, roll_rate);
+    float pitch_output = pitch_rate_pid.PID(q_setpoint, pitch_rate);
+    float yaw_output = yaw_rate_pid.PID(r_setpoint, yaw_rate);
+    // Note: yaw_output is from the yaw rate PID, which tries to maintain 0 yaw
+    // rate. Eventually an outer loop yaw controller will be added to command
+    // yaw rate based on yaw setpoint.
+
+    // If the quadcopter hasn't been calibrated, then set the roll and pitch
+    // offsets. This runs at the start before flying. Only do this if the
+    // quadcopter is reasonably level (within +/- 5 degrees). Otherwise the
+    // calibration should not occur (fly with 0 roll/pitch offset).
+    if (!is_calibrated && fabs(roll) < deg_to_rad(5.0) &&
+        fabs(pitch) < deg_to_rad(5.0))
     {
+        // These offsets are in radians.
+        roll_offset = roll;
+        pitch_offset = pitch;
+
+        // Calibration is set
+        is_calibrated = true;
+    }
+    else if (!is_calibrated)
+    {
+        // Choose to keep the 0 degree offset in order to take off from uneven
+        // surfaces.
+        is_calibrated = true;
+    }
+    else if (throttle >= throttle_cutoff && !is_crashed && is_calibrated)
+    {
+        // Don't do anything unless the throttle is outside a deadband, and the
+        // quadcopter is uncrashed. The IMU positions must also be calibrated.
+
         // Compute power for each motor.
         front_left_out = throttle - roll_output + pitch_output + yaw_output;
         back_left_out = throttle - roll_output - pitch_output - yaw_output;
@@ -535,8 +609,10 @@ void loop()
                       String(roll) + "," + String(pitch) + "," + String(yaw);
         data += "," + String(roll_rate) + "," + String(pitch_rate) + "," +
                 String(yaw_rate);
-        data += "," + String(throttle) + "," + String(roll_output) + "," +
-                String(pitch_output) + "," + String(yaw_output);
+        data += "," + String(throttle) + "," + String(roll_setpoint) + "," +
+                String(pitch_setpoint) + "," + String(yaw_setpoint);
+        data += "," + String(roll_output) + "," + String(pitch_output) + "," +
+                String(yaw_output);
         data += "," + String(front_left_out) + "," + String(back_left_out) +
                 "," + String(front_right_out) + "," + String(back_right_out);
         data += "," + String(pwm_fl) + "," + String(pwm_bl) + "," +
