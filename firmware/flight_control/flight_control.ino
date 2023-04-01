@@ -1,4 +1,5 @@
 
+#include "lpf.h"
 #include "pid.h"
 #include <Adafruit_BNO055.h>
 #include <Adafruit_Sensor.h>
@@ -25,10 +26,11 @@ char log_base_name[] = "flight_\0";
 char log_file_name[LOG_FN_LEN] = {'\0'};
 int flight_num = 0;
 String log_headers =
-    "t,is_crashed,roll,pitch,yaw,p,q,r,throttle,roll_cmd,pitch_cmd,yaw_cmd,"
-    "roll_pid_out,pitch_pid_out,yaw_pid_out,motor_fl,motor_bl,motor_fr,motor_"
-    "br,pwm_fl,pwm_bl,pwm_fr,pwm_br";
+    "t,is_crashed,roll,pitch,yaw,p,q,r,throttle,p_cmd,q_cmd,r_cmd,roll_cmd,"
+    "pitch_cmd,yaw_cmd,roll_pid_out,pitch_pid_out,yaw_pid_out,motor_fl,motor_"
+    "bl,motor_fr,motor_br,pwm_fl,pwm_bl,pwm_fr,pwm_br";
 bool is_logging_available = false;
+const int kLogPrecision = 6;
 
 // Debugging
 bool is_rc_debug = false;
@@ -90,7 +92,7 @@ const float kMaxPitch = deg_to_rad(20.0);
 const float kMaxRoll = deg_to_rad(20.0);
 
 // Filter constants
-const float kGyroMix = 0.8;
+const float kGyroMix = 0.95;
 
 // States
 // Angles (rad)
@@ -101,6 +103,17 @@ float yaw = 0.0;
 float roll_rate = 0.0;
 float pitch_rate = 0.0;
 float yaw_rate = 0.0;
+
+// State filters
+const float kAngleLpfMix = 0.2;
+LowPassFilter roll_lpf(roll, kAngleLpfMix);
+LowPassFilter pitch_lpf(pitch, kAngleLpfMix);
+LowPassFilter yaw_lpf(yaw, kAngleLpfMix);
+
+const float kRateLpfMix = 0.1;
+LowPassFilter p_lpf(roll_rate, kRateLpfMix);
+LowPassFilter q_lpf(pitch_rate, kRateLpfMix);
+LowPassFilter r_lpf(yaw_rate, kRateLpfMix);
 
 // Calibration
 bool is_calibrated = false;
@@ -116,35 +129,45 @@ float p_setpoint = 0.0;
 float q_setpoint = 0.0;
 float r_setpoint = 0.0;
 
+// Numerical derivative for rates
+unsigned long t_prev = millis();
+float roll_prev = 0.0;
+float pitch_prev = 0.0;
+
 // PID Gains
 // Roll
-float roll_kp = 0.15;
-float roll_ki = 0.0009;
-float roll_kd = 0.02;
+float roll_kp = 0.05;
+float roll_ki = 0.000;
+float roll_kd = 0.08;
 // Pitch
-float pitch_kp = 0.5;
-float pitch_ki = 0.001;
-float pitch_kd = 0.06;
+float pitch_kp = 0.05;
+float pitch_ki = 0.00;
+float pitch_kd = 0.05;
 // Yaw
-float yaw_kp = 0.3;
-float yaw_ki = 0.001;
+float yaw_kp = 0.02;
+float yaw_ki = 0.0;
 float yaw_kd = 0.04;
+
 // Roll Rate
-float roll_rate_kp = 0.15;
-float roll_rate_ki = 0.0007;
-float roll_rate_kd = 0.015;
+float roll_rate_kp = 0.0001;
+float roll_rate_ki = 0.0000;
+float roll_rate_kd = 0.004;
 // Pitch Rate
-float pitch_rate_kp = 0.25;
-float pitch_rate_ki = 0.0005;
-float pitch_rate_kd = 0.04;
+float pitch_rate_kp = 0.0001;
+float pitch_rate_ki = 0.00000;
+float pitch_rate_kd = 0.02;
 // Yaw Rate
-float yaw_rate_kp = 0.25;
-float yaw_rate_ki = 0.001;
-float yaw_rate_kd = 0.03;
+float yaw_rate_kp = 0.005;
+float yaw_rate_ki = 0.0000;
+float yaw_rate_kd = 0.05;
 
 // PID output limits
-float pid_lower = -0.3;
-float pid_upper = 0.3;
+// Inner loop (rate) PID limits
+const float kRatePIDLower = -0.3;
+const float kRatePIDUpper = 0.3;
+// Outer loop (angle) PID limits
+const float kAnglePIDLower = deg_to_rad(-2.0); // rad/s
+const float kAnglePIDUpper = deg_to_rad(2.0);  // rad/s
 
 // PID Controllers
 PIDController roll_pid = PIDController(roll_kp, roll_ki, roll_kd);
@@ -389,12 +412,15 @@ void setup()
     analogWriteFrequency(back_right_motor, 50);
 
     // Set PID output limits
-    roll_pid.SetOutputLimits(pid_lower, pid_upper);
-    pitch_pid.SetOutputLimits(pid_lower, pid_upper);
-    yaw_pid.SetOutputLimits(pid_lower, pid_upper);
-    roll_rate_pid.SetOutputLimits(pid_lower, pid_upper);
-    pitch_rate_pid.SetOutputLimits(pid_lower, pid_upper);
-    yaw_rate_pid.SetOutputLimits(pid_lower, pid_upper);
+    roll_pid.SetOutputLimits(kAnglePIDLower, kAnglePIDUpper);
+    pitch_pid.SetOutputLimits(kAnglePIDLower, kAnglePIDUpper);
+    yaw_pid.SetOutputLimits(kAnglePIDLower, kAnglePIDUpper);
+    roll_rate_pid.SetOutputLimits(kRatePIDLower, kRatePIDUpper);
+    pitch_rate_pid.SetOutputLimits(kRatePIDLower, kRatePIDUpper);
+    yaw_rate_pid.SetOutputLimits(kRatePIDLower, kRatePIDUpper);
+
+    // Init the prev time to the start time.
+    t_prev = micros();
 
     // Wait for BNO055 to initialize
     delay(5000);
@@ -439,21 +465,43 @@ void loop()
     // calibrated once on startup. Note: this depends on the orientation of the
     // BNO055 in the quadcopter itself. Modify as needed to achieve the correct
     // orientation.
-    roll = deg_to_rad(rpy_event.orientation.z) - roll_offset;
-    pitch = deg_to_rad(-1.0 * rpy_event.orientation.y) - pitch_offset;
+    float roll_input = deg_to_rad(rpy_event.orientation.z) - roll_offset;
+    float pitch_input =
+        deg_to_rad(-1.0 * rpy_event.orientation.y) - pitch_offset;
+
+    // Lowpass filter the angles
+    roll = roll_lpf.Filter(roll_input);
+    pitch = pitch_lpf.Filter(pitch_input);
 
     // Compute yaw as the closest angle to the yaw setpoint
     // This also converts yaw to radians
-    yaw = rpy_event.orientation.x;
+    float yaw_input = rpy_event.orientation.x;
+    yaw = yaw_lpf.Filter(yaw_input);
     yaw = augment_yaw(yaw_setpoint, yaw);
 
-    // Set the angular rates in rad/s. Low pass filter the input.
-    roll_rate =
+    // Compute the roll and pitch rate numerically
+    float dt = (float)(millis() - t_prev) / 1000.0;
+    roll_rate = (float)(roll - roll_prev) / dt;
+    pitch_rate = (float)(pitch - pitch_prev) / dt;
+
+    // Set current values as previous
+    t_prev = millis();
+    roll_prev = roll;
+    pitch_prev = pitch;
+
+    // Set the angular rates in rad/s. Complementary filter between the
+    // numerical derivative and the gyro values.
+    float roll_rate_input =
         (1.0 - kGyroMix) * roll_rate + kGyroMix * deg_to_rad(pqr_event.gyro.z);
-    pitch_rate = (1.0 - kGyroMix) * pitch_rate +
-                 kGyroMix * deg_to_rad(-1.0 * pqr_event.gyro.y);
-    yaw_rate =
+    float pitch_rate_input = (1.0 - kGyroMix) * pitch_rate +
+                             kGyroMix * deg_to_rad(-1.0 * pqr_event.gyro.y);
+    float yaw_rate_input =
         (1.0 - kGyroMix) * yaw_rate + kGyroMix * deg_to_rad(pqr_event.gyro.x);
+
+    // Lowpass filter angular rates
+    roll_rate = p_lpf.Filter(roll_rate_input);
+    pitch_rate = q_lpf.Filter(pitch_rate_input);
+    yaw_rate = r_lpf.Filter(yaw_rate_input);
 
     if (is_imu_debug)
     {
@@ -488,9 +536,8 @@ void loop()
     }
 
     // Outer loop PID controllers
-    // float p_setpoint = -1.0 * roll_pid.PIDRate(roll_setpoint, roll,
-    // roll_rate); float q_setpoint = pitch_pid.PIDRate(pitch_setpoint, pitch,
-    // pitch_rate);
+    p_setpoint = roll_pid.PIDRate(roll_setpoint, roll, roll_rate);
+    q_setpoint = pitch_pid.PIDRate(pitch_setpoint, pitch, pitch_rate);
 
     // PID control calculations
     float roll_output = -1.0 * roll_rate_pid.PID(p_setpoint, roll_rate);
@@ -606,15 +653,25 @@ void loop()
 
         // Create a data string
         String data = String(millis()) + "," + String(is_crashed) + "," +
-                      String(roll) + "," + String(pitch) + "," + String(yaw);
+                      String(roll, kLogPrecision) + "," +
+                      String(pitch, kLogPrecision) + "," +
+                      String(yaw, kLogPrecision);
         data += "," + String(roll_rate) + "," + String(pitch_rate) + "," +
-                String(yaw_rate);
-        data += "," + String(throttle) + "," + String(roll_setpoint) + "," +
-                String(pitch_setpoint) + "," + String(yaw_setpoint);
-        data += "," + String(roll_output) + "," + String(pitch_output) + "," +
-                String(yaw_output);
-        data += "," + String(front_left_out) + "," + String(back_left_out) +
-                "," + String(front_right_out) + "," + String(back_right_out);
+                String(yaw_rate, kLogPrecision);
+        data += "," + String(throttle, kLogPrecision) + "," +
+                String(p_setpoint, kLogPrecision) + "," +
+                String(q_setpoint, kLogPrecision) + "," +
+                String(r_setpoint, kLogPrecision) + "," +
+                String(roll_setpoint, kLogPrecision) + "," +
+                String(pitch_setpoint, kLogPrecision) + "," +
+                String(yaw_setpoint, kLogPrecision);
+        data += "," + String(roll_output, kLogPrecision) + "," +
+                String(pitch_output, kLogPrecision) + "," +
+                String(yaw_output, kLogPrecision);
+        data += "," + String(front_left_out, kLogPrecision) + "," +
+                String(back_left_out, kLogPrecision) + "," +
+                String(front_right_out, kLogPrecision) + "," +
+                String(back_right_out, kLogPrecision);
         data += "," + String(pwm_fl) + "," + String(pwm_bl) + "," +
                 String(pwm_fr) + "," + String(pwm_br);
 
@@ -624,6 +681,6 @@ void loop()
         log_file.close();
     }
 
-    // Run no faster than 1000 Hz
-    delay(1);
+    // Target 500 Hz, expect 100 Hz
+    delay(2);
 }
