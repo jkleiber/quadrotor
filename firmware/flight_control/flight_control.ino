@@ -83,13 +83,17 @@ Adafruit_BNO055 bno = Adafruit_BNO055(69, 0x28);
 // NOTE: this needs to be tuned after ESC calibration
 // TODO: make this a config file or controlled by the RC
 float fl_trim = 0.0;
-float bl_trim = 0.05;
-float fr_trim = 0.02;
-float br_trim = 0.05;
+float bl_trim = 0.025;
+float fr_trim = 0.00;
+float br_trim = 0.025;
 
 // Command limits
-const float kMaxPitch = deg_to_rad(20.0);
 const float kMaxRoll = deg_to_rad(20.0);
+const float kMaxPitch = deg_to_rad(20.0);
+
+const float kMaxRollRate = deg_to_rad(200.0);
+const float kMaxPitchRate = deg_to_rad(200.0);
+const float kMaxYawRate = deg_to_rad(100.0);
 
 // Filter constants
 const float kGyroMix = 0.95;
@@ -136,7 +140,7 @@ float pitch_prev = 0.0;
 
 // PID Gains
 // Roll
-float roll_kp = 0.05;
+float roll_kp = deg_to_rad(10);
 float roll_ki = 0.000;
 float roll_kd = 0.08;
 // Pitch
@@ -149,25 +153,22 @@ float yaw_ki = 0.0;
 float yaw_kd = 0.04;
 
 // Roll Rate
-float roll_rate_kp = 0.0001;
-float roll_rate_ki = 0.0000;
-float roll_rate_kd = 0.004;
+float roll_rate_kp = 0.1;
+float roll_rate_ki = 0.000001;
+float roll_rate_kd = 0.02;
 // Pitch Rate
-float pitch_rate_kp = 0.0001;
-float pitch_rate_ki = 0.00000;
+float pitch_rate_kp = 0.1;
+float pitch_rate_ki = 0.000001;
 float pitch_rate_kd = 0.02;
 // Yaw Rate
-float yaw_rate_kp = 0.005;
-float yaw_rate_ki = 0.0000;
-float yaw_rate_kd = 0.05;
+float yaw_rate_kp = 0.1;
+float yaw_rate_ki = 0.000001;
+float yaw_rate_kd = 0.02;
 
 // PID output limits
 // Inner loop (rate) PID limits
-const float kRatePIDLower = -0.3;
-const float kRatePIDUpper = 0.3;
-// Outer loop (angle) PID limits
-const float kAnglePIDLower = deg_to_rad(-2.0); // rad/s
-const float kAnglePIDUpper = deg_to_rad(2.0);  // rad/s
+const float kRatePIDLower = -0.1;
+const float kRatePIDUpper = 0.1;
 
 // PID Controllers
 PIDController roll_pid = PIDController(roll_kp, roll_ki, roll_kd);
@@ -412,9 +413,9 @@ void setup()
     analogWriteFrequency(back_right_motor, 50);
 
     // Set PID output limits
-    roll_pid.SetOutputLimits(kAnglePIDLower, kAnglePIDUpper);
-    pitch_pid.SetOutputLimits(kAnglePIDLower, kAnglePIDUpper);
-    yaw_pid.SetOutputLimits(kAnglePIDLower, kAnglePIDUpper);
+    roll_pid.SetOutputLimits(-kMaxRollRate, kMaxRollRate);
+    pitch_pid.SetOutputLimits(-kMaxPitchRate, kMaxPitchRate);
+    yaw_pid.SetOutputLimits(-kMaxYawRate, kMaxYawRate);
     roll_rate_pid.SetOutputLimits(kRatePIDLower, kRatePIDUpper);
     pitch_rate_pid.SetOutputLimits(kRatePIDLower, kRatePIDUpper);
     yaw_rate_pid.SetOutputLimits(kRatePIDLower, kRatePIDUpper);
@@ -516,10 +517,11 @@ void loop()
     // Convert the rc throttle input to a motor power percentage
     float throttle =
         convert_rc_throttle_to_power(channel_values[kThrottleChannel]);
-    pitch_setpoint = convert_rc_stick_to_range(channel_values[kPitchChannel],
-                                               -kMaxPitch, kMaxPitch);
-    roll_setpoint = convert_rc_stick_to_range(channel_values[kRollChannel],
-                                              -kMaxRoll, kMaxRoll);
+    // HACK: tune PIDs using "rate" mode
+    // roll_setpoint = convert_rc_stick_to_range(channel_values[kRollChannel],
+    //                                           -kMaxRoll, kMaxRoll);
+    // pitch_setpoint = convert_rc_stick_to_range(channel_values[kPitchChannel],
+    //                                            -kMaxPitch, kMaxPitch);
 
     // The quadcopter is crashed if it rolls or pitches too much.
     if (fabs(roll) >= roll_limit || fabs(pitch) >= pitch_limit)
@@ -536,8 +538,12 @@ void loop()
     }
 
     // Outer loop PID controllers
-    p_setpoint = roll_pid.PIDRate(roll_setpoint, roll, roll_rate);
-    q_setpoint = pitch_pid.PIDRate(pitch_setpoint, pitch, pitch_rate);
+    // p_setpoint = roll_pid.PIDRate(roll_setpoint, roll, roll_rate);
+    // q_setpoint = pitch_pid.PIDRate(pitch_setpoint, pitch, pitch_rate);
+    p_setpoint = convert_rc_stick_to_range(channel_values[kRollChannel],
+                                           -kMaxRollRate, kMaxRollRate);
+    q_setpoint = convert_rc_stick_to_range(channel_values[kPitchChannel],
+                                           -kMaxPitchRate, kMaxPitchRate);
 
     // PID control calculations
     float roll_output = -1.0 * roll_rate_pid.PID(p_setpoint, roll_rate);
