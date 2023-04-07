@@ -1,6 +1,5 @@
+// Copyright (C) 2023 Justin Kleiber
 
-#include "lpf.h"
-#include "pid.h"
 #include <Adafruit_BNO055.h>
 #include <Adafruit_Sensor.h>
 #include <IBusBM.h>
@@ -9,10 +8,14 @@
 #include <Wire.h>
 #include <utility/imumaths.h>
 
+#include "lpf.h"
+#include "pid.h"
+#include "pwm_utils.h"
+
 #define LOG_FN_LEN 20
 
 float deg_to_rad(float deg) { return deg * PI / 180.0; }
-float rad_to_det(float rad) { return rad * 180.0 / PI; }
+float rad_to_deg(float rad) { return rad * 180.0 / PI; }
 
 // IBus Interface
 IBusBM ibus;
@@ -20,8 +23,12 @@ IBusBM ibus;
 // Remote control values
 int channel_values[6];
 
-// SD card logging
-const int sd_chip_select = BUILTIN_SDCARD;
+// SD card settings
+// Note: this only works on Teensy 3.6, and the SD logging depends on the Teensy
+// version of the SD library.
+const int kSDChipSelect = BUILTIN_SDCARD;
+
+// Logging
 char log_base_name[] = "flight_\0";
 char log_file_name[LOG_FN_LEN] = {'\0'};
 int flight_num = 0;
@@ -41,31 +48,17 @@ bool is_pwm_debug = false;
 
 // Crash detection
 bool is_crashed = false;
-float roll_limit = deg_to_rad(90);
-float pitch_limit = deg_to_rad(90);
+const float kRollLimit = 90.0;  // deg
+const float kPitchLimit = 90.0; // deg
 
 // Scope Pin
-const int scope_pin = A14;
+const int kScopePin = A14;
 
 // Motor PWM pins
-const int front_left_motor = 23;
-const int back_left_motor = 22;
-const int front_right_motor = 21;
-const int back_right_motor = 20;
-
-// PWM settings
-const int pwm_resolution = 14;
-const int max_pwm = pow(2, pwm_resolution) - 1;
-
-// Duty cycle conversions
-const int pwm_period_us = 20000;
-const int pwm_max_duty_us = 2000;
-const int pwm_min_duty_us = 1000;
-
-// Duty cycle limits
-const int idle_out = max_pwm * pwm_min_duty_us / pwm_period_us;
-const int min_pwm_duty = (int)(0.051 * (float)max_pwm);
-const int max_pwm_duty = (int)(0.1 * (float)max_pwm);
+const int kFrontLeftMotor = 23;
+const int kBackLeftMotor = 22;
+const int kFrontRightMotor = 21;
+const int kBackRightMotor = 20;
 
 // RC channels (0-indexed)
 const int kThrottleChannel = 2; // This is Channel 3 when 1-indexed
@@ -74,7 +67,7 @@ const int kRollChannel = 0;
 
 // Throttle cutoff
 // Note: This is equivalent to ~1020 us input on the RC.
-const float throttle_cutoff = 0.02f; // Motor power 2%
+const float kThrottleCutoff = 0.02f; // Motor power 2%
 
 // BNO055 IMU
 Adafruit_BNO055 bno = Adafruit_BNO055(69, 0x28);
@@ -88,12 +81,12 @@ float fr_trim = 0.00;
 float br_trim = 0.025;
 
 // Command limits
-const float kMaxRoll = deg_to_rad(20.0);
-const float kMaxPitch = deg_to_rad(20.0);
+const float kMaxRollCmd = 20.0;  // deg
+const float kMaxPitchCmd = 20.0; // deg
 
-const float kMaxRollRate = deg_to_rad(200.0);
-const float kMaxPitchRate = deg_to_rad(200.0);
-const float kMaxYawRate = deg_to_rad(100.0);
+const float kMaxRollRateCmd = 200.0;  // deg
+const float kMaxPitchRateCmd = 200.0; // deg
+const float kMaxYawRateCmd = 100.0;   // deg
 
 // Filter constants
 const float kGyroMix = 0.95;
@@ -121,54 +114,57 @@ LowPassFilter r_lpf(yaw_rate, kRateLpfMix);
 
 // Calibration
 bool is_calibrated = false;
-// Offsets (rad)
-float roll_offset = 0.0;
-float pitch_offset = 0.0;
+const float kMaxStableRoll = 5.0;  // deg
+const float kMaxStablePitch = 5.0; // deg
+
+// Calibration offsets
+float roll_offset = 0.0;  // deg
+float pitch_offset = 0.0; // deg
 
 // Control setpoints
-float roll_setpoint = 0.0;
-float pitch_setpoint = 0.0;
-float yaw_setpoint = 0.0;
-float p_setpoint = 0.0;
-float q_setpoint = 0.0;
-float r_setpoint = 0.0;
+float roll_setpoint = 0.0;  // deg
+float pitch_setpoint = 0.0; // deg
+float yaw_setpoint = 0.0;   // deg
+float p_setpoint = 0.0;     // deg/s
+float q_setpoint = 0.0;     // deg/s
+float r_setpoint = 0.0;     // deg/s
 
 // Numerical derivative for rates
 unsigned long t_prev = millis();
-float roll_prev = 0.0;
-float pitch_prev = 0.0;
+float roll_prev = 0.0;  // deg
+float pitch_prev = 0.0; // deg
 
 // PID Gains
 // Roll
-float roll_kp = deg_to_rad(10);
+float roll_kp = 10;
 float roll_ki = 0.000;
-float roll_kd = 0.08;
+float roll_kd = 4.5;
 // Pitch
-float pitch_kp = 0.05;
+float pitch_kp = 2.8;
 float pitch_ki = 0.00;
-float pitch_kd = 0.05;
+float pitch_kd = 2.8;
 // Yaw
-float yaw_kp = 0.02;
+float yaw_kp = 1.15;
 float yaw_ki = 0.0;
-float yaw_kd = 0.04;
+float yaw_kd = 2.3;
 
 // Roll Rate
-float roll_rate_kp = 0.1;
-float roll_rate_ki = 0.000001;
-float roll_rate_kd = 0.02;
+float roll_rate_kp = 5.72;
+float roll_rate_ki = 0.001;
+float roll_rate_kd = 1.15;
 // Pitch Rate
-float pitch_rate_kp = 0.1;
-float pitch_rate_ki = 0.000001;
-float pitch_rate_kd = 0.02;
+float pitch_rate_kp = 5.72;
+float pitch_rate_ki = 0.001;
+float pitch_rate_kd = 1.15;
 // Yaw Rate
-float yaw_rate_kp = 0.1;
-float yaw_rate_ki = 0.000001;
-float yaw_rate_kd = 0.02;
+float yaw_rate_kp = 5.72;
+float yaw_rate_ki = 0.001;
+float yaw_rate_kd = 1.15;
 
 // PID output limits
 // Inner loop (rate) PID limits
-const float kRatePIDLower = -0.1;
-const float kRatePIDUpper = 0.1;
+const float kRatePIDLower = -0.1; // %
+const float kRatePIDUpper = 0.1;  // %
 
 // PID Controllers
 PIDController roll_pid = PIDController(roll_kp, roll_ki, roll_kd);
@@ -192,66 +188,6 @@ int pwm_fl = 0;
 int pwm_bl = 0;
 int pwm_fr = 0;
 int pwm_br = 0;
-
-// Convert RC throttle to percent power.
-float convert_rc_throttle_to_power(int throttle)
-{
-    // Get the period range
-    int pwm_duty_range_us = pwm_max_duty_us - pwm_min_duty_us;
-
-    // Convert the throttle into percentage of the maximum control duty cycle
-    float power =
-        ((float)throttle - (float)pwm_min_duty_us) / (float)pwm_duty_range_us;
-
-    return power;
-}
-
-// Convert RC throttle to percent power.
-float convert_rc_stick_to_range(int &stick, const float &min, const float &max)
-{
-    // Get the period range
-    int pwm_duty_range_us = pwm_max_duty_us - pwm_min_duty_us;
-
-    // Convert the throttle into percentage of the maximum control duty cycle
-    // This will return a value between 0 and 1 for the iFly RC.
-    float range_pct =
-        ((float)stick - (float)pwm_min_duty_us) / (float)pwm_duty_range_us;
-
-    // Convert the range pct into the range
-    float range_width = max - min;
-    float val = min + (range_width * range_pct);
-
-    return val;
-}
-
-// Convert the percent power for a motor to PWM duty cycle.
-int convert_power_to_pwm(float power)
-{
-    // Get the period range
-    int pwm_duty_range_us = pwm_max_duty_us - pwm_min_duty_us;
-
-    // Power is a percentage of the maximum duty cycle period divided by the PWM
-    // period
-    float pwm_high_us =
-        (power * (float)pwm_duty_range_us) + (float)pwm_min_duty_us;
-    float duty_cycle_pct = pwm_high_us / (float)pwm_period_us;
-
-    // The percentage is multiplied by the PWM resolution to get the analogWrite
-    // value.
-    float duty_cycle = duty_cycle_pct * (float)max_pwm;
-
-    // Convert duty cycle to int for PWM output
-    int pwm_duty = (int)duty_cycle;
-
-    return pwm_duty;
-}
-
-int clamp_pwm_duty(int duty, int min_duty, int max_duty)
-{
-    duty = min(max_duty, max(min_duty, duty));
-
-    return duty;
-}
 
 // Find yaw to be an angle offset relative to the yaw setpoint
 // This is to maintain transitioning from the simulator until the
@@ -305,9 +241,6 @@ float augment_yaw(float yaw_setpoint, float yaw)
     // Set the output yaw to be in the neighborhood of the setpoint
     float yaw_out = yaw_setpoint + delta_1;
 
-    // Convert to radians
-    yaw_out = deg_to_rad(yaw_out);
-
     return yaw_out;
 }
 
@@ -358,7 +291,7 @@ void setup()
     }
 
     // If the SD card is inserted, enable logging to the SD card.
-    if (SD.begin(sd_chip_select))
+    if (SD.begin(kSDChipSelect))
     {
         // Name the file
         flight_num = get_flight_number();
@@ -398,24 +331,24 @@ void setup()
     ibus.begin(Serial4, IBUSBM_NOTIMER);
 
     // Configure the motor ports to be outputs.
-    pinMode(front_left_motor, OUTPUT);
-    pinMode(back_left_motor, OUTPUT);
-    pinMode(front_right_motor, OUTPUT);
-    pinMode(back_right_motor, OUTPUT);
+    pinMode(kFrontLeftMotor, OUTPUT);
+    pinMode(kBackLeftMotor, OUTPUT);
+    pinMode(kFrontRightMotor, OUTPUT);
+    pinMode(kBackRightMotor, OUTPUT);
 
     // Set the PWM resolution
-    analogWriteResolution(pwm_resolution);
+    analogWriteResolution(kPwmResolution);
 
     // Set the PWM frequencies for each motor to 50 Hz.
-    analogWriteFrequency(front_left_motor, 50);
-    analogWriteFrequency(back_left_motor, 50);
-    analogWriteFrequency(front_right_motor, 50);
-    analogWriteFrequency(back_right_motor, 50);
+    analogWriteFrequency(kFrontLeftMotor, 50);
+    analogWriteFrequency(kBackLeftMotor, 50);
+    analogWriteFrequency(kFrontRightMotor, 50);
+    analogWriteFrequency(kBackRightMotor, 50);
 
     // Set PID output limits
-    roll_pid.SetOutputLimits(-kMaxRollRate, kMaxRollRate);
-    pitch_pid.SetOutputLimits(-kMaxPitchRate, kMaxPitchRate);
-    yaw_pid.SetOutputLimits(-kMaxYawRate, kMaxYawRate);
+    roll_pid.SetOutputLimits(-kMaxRollRateCmd, kMaxRollRateCmd);
+    pitch_pid.SetOutputLimits(-kMaxPitchRateCmd, kMaxPitchRateCmd);
+    yaw_pid.SetOutputLimits(-kMaxYawRateCmd, kMaxYawRateCmd);
     roll_rate_pid.SetOutputLimits(kRatePIDLower, kRatePIDUpper);
     pitch_rate_pid.SetOutputLimits(kRatePIDLower, kRatePIDUpper);
     yaw_rate_pid.SetOutputLimits(kRatePIDLower, kRatePIDUpper);
@@ -466,9 +399,8 @@ void loop()
     // calibrated once on startup. Note: this depends on the orientation of the
     // BNO055 in the quadcopter itself. Modify as needed to achieve the correct
     // orientation.
-    float roll_input = deg_to_rad(rpy_event.orientation.z) - roll_offset;
-    float pitch_input =
-        deg_to_rad(-1.0 * rpy_event.orientation.y) - pitch_offset;
+    float roll_input = rpy_event.orientation.z - roll_offset;
+    float pitch_input = (-1.0 * rpy_event.orientation.y) - pitch_offset;
 
     // Lowpass filter the angles
     roll = roll_lpf.Filter(roll_input);
@@ -493,11 +425,11 @@ void loop()
     // Set the angular rates in rad/s. Complementary filter between the
     // numerical derivative and the gyro values.
     float roll_rate_input =
-        (1.0 - kGyroMix) * roll_rate + kGyroMix * deg_to_rad(pqr_event.gyro.z);
-    float pitch_rate_input = (1.0 - kGyroMix) * pitch_rate +
-                             kGyroMix * deg_to_rad(-1.0 * pqr_event.gyro.y);
+        (1.0 - kGyroMix) * roll_rate + kGyroMix * pqr_event.gyro.z;
+    float pitch_rate_input =
+        (1.0 - kGyroMix) * pitch_rate + kGyroMix * (-1.0 * pqr_event.gyro.y);
     float yaw_rate_input =
-        (1.0 - kGyroMix) * yaw_rate + kGyroMix * deg_to_rad(pqr_event.gyro.x);
+        (1.0 - kGyroMix) * yaw_rate + kGyroMix * pqr_event.gyro.x;
 
     // Lowpass filter angular rates
     roll_rate = p_lpf.Filter(roll_rate_input);
@@ -519,20 +451,20 @@ void loop()
         convert_rc_throttle_to_power(channel_values[kThrottleChannel]);
     // HACK: tune PIDs using "rate" mode
     // roll_setpoint = convert_rc_stick_to_range(channel_values[kRollChannel],
-    //                                           -kMaxRoll, kMaxRoll);
+    //                                           -kMaxRollCmd, kMaxRollCmd);
     // pitch_setpoint = convert_rc_stick_to_range(channel_values[kPitchChannel],
-    //                                            -kMaxPitch, kMaxPitch);
+    //                                            -kMaxPitchCmd, kMaxPitchCmd);
 
     // The quadcopter is crashed if it rolls or pitches too much.
-    if (fabs(roll) >= roll_limit || fabs(pitch) >= pitch_limit)
+    if (fabs(roll) >= kRollLimit || fabs(pitch) >= kPitchLimit)
     {
         is_crashed = true;
     }
 
     // The quadcopter can only be un-crashed once the throttle is set low and
     // the quadcopter is upright
-    if (throttle < throttle_cutoff && fabs(roll) < roll_limit &&
-        fabs(pitch) < pitch_limit)
+    if (throttle < kThrottleCutoff && fabs(roll) < kRollLimit &&
+        fabs(pitch) < kPitchLimit)
     {
         is_crashed = false;
     }
@@ -541,9 +473,9 @@ void loop()
     // p_setpoint = roll_pid.PIDRate(roll_setpoint, roll, roll_rate);
     // q_setpoint = pitch_pid.PIDRate(pitch_setpoint, pitch, pitch_rate);
     p_setpoint = convert_rc_stick_to_range(channel_values[kRollChannel],
-                                           -kMaxRollRate, kMaxRollRate);
+                                           -kMaxRollRateCmd, kMaxRollRateCmd);
     q_setpoint = convert_rc_stick_to_range(channel_values[kPitchChannel],
-                                           -kMaxPitchRate, kMaxPitchRate);
+                                           -kMaxPitchRateCmd, kMaxPitchRateCmd);
 
     // PID control calculations
     float roll_output = -1.0 * roll_rate_pid.PID(p_setpoint, roll_rate);
@@ -557,8 +489,8 @@ void loop()
     // offsets. This runs at the start before flying. Only do this if the
     // quadcopter is reasonably level (within +/- 5 degrees). Otherwise the
     // calibration should not occur (fly with 0 roll/pitch offset).
-    if (!is_calibrated && fabs(roll) < deg_to_rad(5.0) &&
-        fabs(pitch) < deg_to_rad(5.0))
+    if (!is_calibrated && fabs(roll) < kMaxStableRoll &&
+        fabs(pitch) < kMaxStablePitch)
     {
         // These offsets are in radians.
         roll_offset = roll;
@@ -573,11 +505,12 @@ void loop()
         // surfaces.
         is_calibrated = true;
     }
-    else if (throttle >= throttle_cutoff && !is_crashed && is_calibrated)
+    else if (throttle >= kThrottleCutoff && !is_crashed && is_calibrated)
     {
         // Don't do anything unless the throttle is outside a deadband, and the
         // quadcopter is uncrashed. The IMU positions must also be calibrated.
 
+        // MOTOR MAPPING
         // Compute power for each motor.
         front_left_out = throttle - roll_output + pitch_output + yaw_output;
         back_left_out = throttle - roll_output - pitch_output - yaw_output;
@@ -591,10 +524,10 @@ void loop()
         pwm_br = convert_power_to_pwm(back_right_out + br_trim);
 
         // Clamp the duty cycles
-        pwm_fl = clamp_pwm_duty(pwm_fl, min_pwm_duty, max_pwm_duty);
-        pwm_bl = clamp_pwm_duty(pwm_bl, min_pwm_duty, max_pwm_duty);
-        pwm_fr = clamp_pwm_duty(pwm_fr, min_pwm_duty, max_pwm_duty);
-        pwm_br = clamp_pwm_duty(pwm_br, min_pwm_duty, max_pwm_duty);
+        pwm_fl = clamp_pwm_duty(pwm_fl, kPwmMinDutyMicros, kPwmMaxDutyMicros);
+        pwm_bl = clamp_pwm_duty(pwm_bl, kPwmMinDutyMicros, kPwmMaxDutyMicros);
+        pwm_fr = clamp_pwm_duty(pwm_fr, kPwmMinDutyMicros, kPwmMaxDutyMicros);
+        pwm_br = clamp_pwm_duty(pwm_br, kPwmMinDutyMicros, kPwmMaxDutyMicros);
 
         if (is_pid_debug)
         {
@@ -616,10 +549,10 @@ void loop()
         front_right_out = 0.0;
         back_right_out = 0.0;
 
-        pwm_fl = idle_out;
-        pwm_bl = idle_out;
-        pwm_fr = idle_out;
-        pwm_br = idle_out;
+        pwm_fl = kIdlePwm;
+        pwm_bl = kIdlePwm;
+        pwm_fr = kIdlePwm;
+        pwm_br = kIdlePwm;
 
         // Reset the PIDs
         roll_pid.Reset();
@@ -640,14 +573,14 @@ void loop()
     }
 
     // Motor outputs
-    analogWrite(front_left_motor, pwm_fl);
-    analogWrite(back_left_motor, pwm_bl);
-    analogWrite(front_right_motor, pwm_fr);
-    analogWrite(back_right_motor, pwm_br);
+    analogWrite(kFrontLeftMotor, pwm_fl);
+    analogWrite(kBackLeftMotor, pwm_bl);
+    analogWrite(kFrontRightMotor, pwm_fr);
+    analogWrite(kBackRightMotor, pwm_br);
 
     if (is_scope_debug)
     {
-        int scope_input = analogRead(scope_pin);
+        int scope_input = analogRead(kScopePin);
         Serial.println(scope_input);
     }
 

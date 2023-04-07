@@ -10,7 +10,6 @@ public:
     float Filter(float input);
 
 private:
-    float alpha_;
-
     float state_;
+    float alpha_;
 };
