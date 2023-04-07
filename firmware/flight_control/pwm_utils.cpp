@@ -14,6 +14,12 @@ float convert_rc_throttle_to_power(int throttle)
 
 float convert_rc_stick_to_range(int &stick, const float &min, const float &max)
 {
+    // Return range midpoint if stick < 1000 or > 2000.
+    if (stick < 1000 || stick > 2000)
+    {
+        return (min + 0.5 * (max - min));
+    }
+
     // Get the period range
     int pwm_duty_range_us = kPwmMaxDutyMicros - kPwmMinDutyMicros;
 

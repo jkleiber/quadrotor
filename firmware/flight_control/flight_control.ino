@@ -48,8 +48,8 @@ bool is_pwm_debug = false;
 
 // Crash detection
 bool is_crashed = false;
-const float kRollLimit = 90.0;  // deg
-const float kPitchLimit = 90.0; // deg
+const float kRollLimit = 110.0;  // deg
+const float kPitchLimit = 110.0; // deg
 
 // Scope Pin
 const int kScopePin = A14;
@@ -65,9 +65,12 @@ const int kThrottleChannel = 2; // This is Channel 3 when 1-indexed
 const int kPitchChannel = 1;
 const int kRollChannel = 0;
 
+// Remote control deadbands
 // Throttle cutoff
 // Note: This is equivalent to ~1020 us input on the RC.
 const float kThrottleCutoff = 0.02f; // Motor power 2%
+// Angular rate deadband
+const float kRateDeadband = 1.0; // (deg/s)
 
 // BNO055 IMU
 Adafruit_BNO055 bno = Adafruit_BNO055(69, 0x28);
@@ -84,9 +87,9 @@ float br_trim = 0.025;
 const float kMaxRollCmd = 20.0;  // deg
 const float kMaxPitchCmd = 20.0; // deg
 
-const float kMaxRollRateCmd = 200.0;  // deg
-const float kMaxPitchRateCmd = 200.0; // deg
-const float kMaxYawRateCmd = 100.0;   // deg
+const float kMaxRollRateCmd = 50.0;  // deg
+const float kMaxPitchRateCmd = 50.0; // deg
+const float kMaxYawRateCmd = 20.0;   // deg
 
 // Filter constants
 const float kGyroMix = 0.95;
@@ -149,22 +152,28 @@ float yaw_ki = 0.0;
 float yaw_kd = 2.3;
 
 // Roll Rate
-float roll_rate_kp = 5.72;
-float roll_rate_ki = 0.001;
-float roll_rate_kd = 1.15;
+float roll_rate_kp = 0.004;
+float roll_rate_ki = 0.000001;
+float roll_rate_kd = 0.0002;
+float roll_rate_kf = -0.0001;
+const float kRollRateIntegralLimit = 0.1 / roll_rate_ki;
 // Pitch Rate
-float pitch_rate_kp = 5.72;
-float pitch_rate_ki = 0.001;
-float pitch_rate_kd = 1.15;
+float pitch_rate_kp = 0.008;
+float pitch_rate_ki = 0.000001;
+float pitch_rate_kd = 0.0002;
+float pitch_rate_kf = 0.0001;
+const float kPitchRateIntegralLimit = 0.1 / pitch_rate_ki;
 // Yaw Rate
-float yaw_rate_kp = 5.72;
-float yaw_rate_ki = 0.001;
-float yaw_rate_kd = 1.15;
+float yaw_rate_kp = 0.01;
+float yaw_rate_ki = 0.000001;
+float yaw_rate_kd = 0.0002;
+float yaw_rate_kf = 0.0001;
+const float kYawRateIntegralLimit = 0.1 / yaw_rate_ki;
 
 // PID output limits
 // Inner loop (rate) PID limits
-const float kRatePIDLower = -0.1; // %
-const float kRatePIDUpper = 0.1;  // %
+const float kRatePIDLower = -0.25; // %
+const float kRatePIDUpper = 0.25;  // %
 
 // PID Controllers
 PIDController roll_pid = PIDController(roll_kp, roll_ki, roll_kd);
@@ -353,6 +362,14 @@ void setup()
     pitch_rate_pid.SetOutputLimits(kRatePIDLower, kRatePIDUpper);
     yaw_rate_pid.SetOutputLimits(kRatePIDLower, kRatePIDUpper);
 
+    // Set the PID integrator limits
+    roll_rate_pid.SetIntegratorLimits(-kRollRateIntegralLimit,
+                                      kRollRateIntegralLimit);
+    pitch_rate_pid.SetIntegratorLimits(-kPitchRateIntegralLimit,
+                                       kPitchRateIntegralLimit);
+    yaw_rate_pid.SetIntegratorLimits(-kYawRateIntegralLimit,
+                                     kYawRateIntegralLimit);
+
     // Init the prev time to the start time.
     t_prev = micros();
 
@@ -477,10 +494,23 @@ void loop()
     q_setpoint = convert_rc_stick_to_range(channel_values[kPitchChannel],
                                            -kMaxPitchRateCmd, kMaxPitchRateCmd);
 
+    // Apply deadbands.
+    if (fabs(p_setpoint) < kRateDeadband)
+    {
+        p_setpoint = 0.0;
+    }
+    if (fabs(q_setpoint) < kRateDeadband)
+    {
+        q_setpoint = 0.0;
+    }
+
     // PID control calculations
-    float roll_output = -1.0 * roll_rate_pid.PID(p_setpoint, roll_rate);
-    float pitch_output = pitch_rate_pid.PID(q_setpoint, pitch_rate);
-    float yaw_output = yaw_rate_pid.PID(r_setpoint, yaw_rate);
+    float roll_output = -1.0 * roll_rate_pid.PID(p_setpoint, roll_rate) +
+                        (p_setpoint * roll_rate_kf);
+    float pitch_output = pitch_rate_pid.PID(q_setpoint, pitch_rate) +
+                         (q_setpoint * pitch_rate_kf);
+    float yaw_output =
+        yaw_rate_pid.PID(r_setpoint, yaw_rate) + (r_setpoint * yaw_rate_kf);
     // Note: yaw_output is from the yaw rate PID, which tries to maintain 0 yaw
     // rate. Eventually an outer loop yaw controller will be added to command
     // yaw rate based on yaw setpoint.
