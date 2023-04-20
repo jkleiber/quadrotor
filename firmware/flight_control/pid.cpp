@@ -65,6 +65,9 @@ float PIDController::PIDRate(const float &setpoint, const float &x,
     unsigned long t = micros();
     float dt = (float)(t - prev_t_) / MICROS_IN_A_SECOND;
 
+    // Apply leaky integral.
+    integrator_ *= leak_factor_;
+
     // Compute the integral.
     integrator_ += 0.5 * (error + prev_error_) * dt;
 
@@ -115,4 +118,9 @@ void PIDController::SetIntegratorLimits(const float &min, const float &max)
 {
     int_min_ = min;
     int_max_ = max;
+}
+
+void PIDController::SetIntegratorLeak(const float &leak)
+{
+    leak_factor_ = leak;
 }

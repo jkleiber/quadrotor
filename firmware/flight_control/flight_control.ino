@@ -14,6 +14,13 @@
 
 #define LOG_FN_LEN 20
 
+enum ControlMode
+{
+    Rate = 0,
+    Angle = 1
+};
+const ControlMode kMode = Angle;
+
 float deg_to_rad(float deg) { return deg * PI / 180.0; }
 float rad_to_deg(float rad) { return rad * 180.0 / PI; }
 
@@ -68,7 +75,7 @@ const int kRollChannel = 0;
 // Remote control deadbands
 // Throttle cutoff
 // Note: This is equivalent to ~1020 us input on the RC.
-const float kThrottleCutoff = 0.02f; // Motor power 2%
+const float kThrottleCutoff = 0.1f; // Motor power 10%
 // Angular rate deadband
 const float kRateDeadband = 1.0; // (deg/s)
 
@@ -79,9 +86,9 @@ Adafruit_BNO055 bno = Adafruit_BNO055(69, 0x28);
 // NOTE: this needs to be tuned after ESC calibration
 // TODO: make this a config file or controlled by the RC
 float fl_trim = 0.0;
-float bl_trim = 0.025;
 float fr_trim = 0.00;
-float br_trim = 0.025;
+float bl_trim = 0.04;
+float br_trim = 0.04;
 
 // Command limits
 const float kMaxRollCmd = 20.0;  // deg
@@ -105,12 +112,12 @@ float pitch_rate = 0.0;
 float yaw_rate = 0.0;
 
 // State filters
-const float kAngleLpfMix = 0.2;
+const float kAngleLpfMix = 1;
 LowPassFilter roll_lpf(roll, kAngleLpfMix);
 LowPassFilter pitch_lpf(pitch, kAngleLpfMix);
 LowPassFilter yaw_lpf(yaw, kAngleLpfMix);
 
-const float kRateLpfMix = 0.1;
+const float kRateLpfMix = 1;
 LowPassFilter p_lpf(roll_rate, kRateLpfMix);
 LowPassFilter q_lpf(pitch_rate, kRateLpfMix);
 LowPassFilter r_lpf(yaw_rate, kRateLpfMix);
@@ -139,35 +146,41 @@ float pitch_prev = 0.0; // deg
 
 // PID Gains
 // Roll
-float roll_kp = 10;
-float roll_ki = 0.000;
-float roll_kd = 4.5;
+float roll_kp = 0.05;
+float roll_ki = 0.00001;
+float roll_kd = 0.001;
+const float kRollLeak = 0.99;
 // Pitch
-float pitch_kp = 2.8;
-float pitch_ki = 0.00;
-float pitch_kd = 2.8;
+float pitch_kp = 0.07;
+float pitch_ki = 0.0001;
+float pitch_kd = 0.001;
+const float kPitchLeak = 0.99;
 // Yaw
-float yaw_kp = 1.15;
-float yaw_ki = 0.0;
-float yaw_kd = 2.3;
+float yaw_kp = 0.06;
+float yaw_ki = 0.0001;
+float yaw_kd = 0.001;
+const float kYawLeak = 0.99;
 
 // Roll Rate
-float roll_rate_kp = 0.004;
+float roll_rate_kp = 0.01;
 float roll_rate_ki = 0.000001;
 float roll_rate_kd = 0.0002;
 float roll_rate_kf = -0.0001;
+const float kRollRateLeak = 0.99;
 const float kRollRateIntegralLimit = 0.1 / roll_rate_ki;
 // Pitch Rate
-float pitch_rate_kp = 0.008;
+float pitch_rate_kp = 0.017;
 float pitch_rate_ki = 0.000001;
 float pitch_rate_kd = 0.0002;
 float pitch_rate_kf = 0.0001;
+const float kPitchRateLeak = 0.99;
 const float kPitchRateIntegralLimit = 0.1 / pitch_rate_ki;
 // Yaw Rate
 float yaw_rate_kp = 0.01;
 float yaw_rate_ki = 0.000001;
 float yaw_rate_kd = 0.0002;
 float yaw_rate_kf = 0.0001;
+const float kYawRateLeak = 0.99;
 const float kYawRateIntegralLimit = 0.1 / yaw_rate_ki;
 
 // PID output limits
@@ -370,6 +383,14 @@ void setup()
     yaw_rate_pid.SetIntegratorLimits(-kYawRateIntegralLimit,
                                      kYawRateIntegralLimit);
 
+    // Set the leakiness for the integrators.
+    roll_pid.SetIntegratorLeak(kRollLeak);
+    pitch_pid.SetIntegratorLeak(kPitchLeak);
+    yaw_pid.SetIntegratorLeak(kYawLeak);
+    roll_rate_pid.SetIntegratorLeak(kRollRateLeak);
+    pitch_rate_pid.SetIntegratorLeak(kPitchRateLeak);
+    yaw_rate_pid.SetIntegratorLeak(kYawRateLeak);
+
     // Init the prev time to the start time.
     t_prev = micros();
 
@@ -442,11 +463,11 @@ void loop()
     // Set the angular rates in rad/s. Complementary filter between the
     // numerical derivative and the gyro values.
     float roll_rate_input =
-        (1.0 - kGyroMix) * roll_rate + kGyroMix * pqr_event.gyro.z;
-    float pitch_rate_input =
-        (1.0 - kGyroMix) * pitch_rate + kGyroMix * (-1.0 * pqr_event.gyro.y);
+        (1.0 - kGyroMix) * roll_rate + kGyroMix * rad_to_deg(pqr_event.gyro.z);
+    float pitch_rate_input = (1.0 - kGyroMix) * pitch_rate +
+                             kGyroMix * rad_to_deg(-1.0 * pqr_event.gyro.y);
     float yaw_rate_input =
-        (1.0 - kGyroMix) * yaw_rate + kGyroMix * pqr_event.gyro.x;
+        (1.0 - kGyroMix) * yaw_rate + kGyroMix * rad_to_deg(pqr_event.gyro.x);
 
     // Lowpass filter angular rates
     roll_rate = p_lpf.Filter(roll_rate_input);
@@ -466,11 +487,6 @@ void loop()
     // Convert the rc throttle input to a motor power percentage
     float throttle =
         convert_rc_throttle_to_power(channel_values[kThrottleChannel]);
-    // HACK: tune PIDs using "rate" mode
-    // roll_setpoint = convert_rc_stick_to_range(channel_values[kRollChannel],
-    //                                           -kMaxRollCmd, kMaxRollCmd);
-    // pitch_setpoint = convert_rc_stick_to_range(channel_values[kPitchChannel],
-    //                                            -kMaxPitchCmd, kMaxPitchCmd);
 
     // The quadcopter is crashed if it rolls or pitches too much.
     if (fabs(roll) >= kRollLimit || fabs(pitch) >= kPitchLimit)
@@ -486,25 +502,39 @@ void loop()
         is_crashed = false;
     }
 
-    // Outer loop PID controllers
-    // p_setpoint = roll_pid.PIDRate(roll_setpoint, roll, roll_rate);
-    // q_setpoint = pitch_pid.PIDRate(pitch_setpoint, pitch, pitch_rate);
-    p_setpoint = convert_rc_stick_to_range(channel_values[kRollChannel],
-                                           -kMaxRollRateCmd, kMaxRollRateCmd);
-    q_setpoint = convert_rc_stick_to_range(channel_values[kPitchChannel],
-                                           -kMaxPitchRateCmd, kMaxPitchRateCmd);
-
-    // Apply deadbands.
-    if (fabs(p_setpoint) < kRateDeadband)
+    switch (kMode)
     {
-        p_setpoint = 0.0;
-    }
-    if (fabs(q_setpoint) < kRateDeadband)
-    {
-        q_setpoint = 0.0;
+    case Angle:
+        roll_setpoint = convert_rc_stick_to_range(channel_values[kRollChannel],
+                                                  -kMaxRollCmd, kMaxRollCmd);
+        pitch_setpoint = convert_rc_stick_to_range(
+            channel_values[kPitchChannel], -kMaxPitchCmd, kMaxPitchCmd);
+
+        // Outer loop PID controllers
+        p_setpoint = roll_pid.PIDRate(roll_setpoint, roll, roll_rate);
+        q_setpoint = pitch_pid.PIDRate(pitch_setpoint, pitch, pitch_rate);
+
+        break;
+
+    case Rate:
+    default:
+        p_setpoint = convert_rc_stick_to_range(
+            channel_values[kRollChannel], -kMaxRollRateCmd, kMaxRollRateCmd);
+        q_setpoint = convert_rc_stick_to_range(
+            channel_values[kPitchChannel], -kMaxPitchRateCmd, kMaxPitchRateCmd);
+
+        // Apply deadbands.
+        if (fabs(p_setpoint) < kRateDeadband)
+        {
+            p_setpoint = 0.0;
+        }
+        if (fabs(q_setpoint) < kRateDeadband)
+        {
+            q_setpoint = 0.0;
+        }
     }
 
-    // PID control calculations
+    // Inner loop PID control calculations
     float roll_output = -1.0 * roll_rate_pid.PID(p_setpoint, roll_rate) +
                         (p_setpoint * roll_rate_kf);
     float pitch_output = pitch_rate_pid.PID(q_setpoint, pitch_rate) +

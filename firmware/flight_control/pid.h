@@ -32,6 +32,7 @@ public:
     // Settings
     void SetOutputLimits(const float &min, const float &max);
     void SetIntegratorLimits(const float &min, const float &max);
+    void SetIntegratorLeak(const float &leak);
 
 private:
     float Kp_;
@@ -43,6 +44,8 @@ private:
     // Integrator settings
     float int_min_ = 1.0;
     float int_max_ = -1.0;
+    // Leaky integrator (1 = no leak, 0 = no integrator).
+    float leak_factor_ = 1.0;
 
     // Derivative
     float prev_error_ = 0.0;
