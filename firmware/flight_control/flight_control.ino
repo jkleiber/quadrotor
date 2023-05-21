@@ -19,7 +19,7 @@ enum ControlMode
     Rate = 0,
     Angle = 1
 };
-const ControlMode kMode = Angle;
+const ControlMode kMode = Rate;
 
 float deg_to_rad(float deg) { return deg * PI / 180.0; }
 float rad_to_deg(float rad) { return rad * 180.0 / PI; }
@@ -162,24 +162,24 @@ float yaw_kd = 0.001;
 const float kYawLeak = 0.99;
 
 // Roll Rate
-float roll_rate_kp = 0.01;
-float roll_rate_ki = 0.000001;
-float roll_rate_kd = 0.0002;
-float roll_rate_kf = -0.0001;
+float roll_rate_kp = 0.0001;
+float roll_rate_ki = 0.00000001;
+float roll_rate_kd = 0.000002;
+float roll_rate_kf = -0.000001;
 const float kRollRateLeak = 0.99;
 const float kRollRateIntegralLimit = 0.1 / roll_rate_ki;
 // Pitch Rate
-float pitch_rate_kp = 0.017;
-float pitch_rate_ki = 0.000001;
-float pitch_rate_kd = 0.0002;
-float pitch_rate_kf = 0.0001;
+float pitch_rate_kp = 0.0003;
+float pitch_rate_ki = 0.00000001;
+float pitch_rate_kd = 0.000002;
+float pitch_rate_kf = 0.000001;
 const float kPitchRateLeak = 0.99;
 const float kPitchRateIntegralLimit = 0.1 / pitch_rate_ki;
 // Yaw Rate
-float yaw_rate_kp = 0.01;
-float yaw_rate_ki = 0.000001;
-float yaw_rate_kd = 0.0002;
-float yaw_rate_kf = 0.0001;
+float yaw_rate_kp = 0.0001;
+float yaw_rate_ki = 0.00000001;
+float yaw_rate_kd = 0.000002;
+float yaw_rate_kf = 0.000001;
 const float kYawRateLeak = 0.99;
 const float kYawRateIntegralLimit = 0.1 / yaw_rate_ki;
 
