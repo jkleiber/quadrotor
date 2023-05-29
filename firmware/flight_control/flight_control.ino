@@ -8,18 +8,11 @@
 #include <Wire.h>
 #include <utility/imumaths.h>
 
+#include "attitude_control.h"
+#include "constants.h"
 #include "lpf.h"
 #include "pid.h"
 #include "pwm_utils.h"
-
-#define LOG_FN_LEN 20
-
-enum ControlMode
-{
-    Rate = 0,
-    Angle = 1
-};
-const ControlMode kMode = Rate;
 
 float deg_to_rad(float deg) { return deg * PI / 180.0; }
 float rad_to_deg(float rad) { return rad * 180.0 / PI; }
@@ -55,29 +48,6 @@ bool is_pwm_debug = false;
 
 // Crash detection
 bool is_crashed = false;
-const float kRollLimit = 110.0;  // deg
-const float kPitchLimit = 110.0; // deg
-
-// Scope Pin
-const int kScopePin = A14;
-
-// Motor PWM pins
-const int kFrontLeftMotor = 23;
-const int kBackLeftMotor = 22;
-const int kFrontRightMotor = 21;
-const int kBackRightMotor = 20;
-
-// RC channels (0-indexed)
-const int kThrottleChannel = 2; // This is Channel 3 when 1-indexed
-const int kPitchChannel = 1;
-const int kRollChannel = 0;
-
-// Remote control deadbands
-// Throttle cutoff
-// Note: This is equivalent to ~1020 us input on the RC.
-const float kThrottleCutoff = 0.1f; // Motor power 10%
-// Angular rate deadband
-const float kRateDeadband = 1.0; // (deg/s)
 
 // BNO055 IMU
 Adafruit_BNO055 bno = Adafruit_BNO055(69, 0x28);
@@ -90,13 +60,9 @@ float fr_trim = 0.00;
 float bl_trim = 0.04;
 float br_trim = 0.04;
 
-// Command limits
-const float kMaxRollCmd = 20.0;  // deg
-const float kMaxPitchCmd = 20.0; // deg
-
-const float kMaxRollRateCmd = 200.0;  // deg
-const float kMaxPitchRateCmd = 200.0; // deg
-const float kMaxYawRateCmd = 100.0;   // deg
+// Control System
+AttitudeControl attitude_ctrl;
+AttitudeControlOutputs attitude_out;
 
 // Filter constants
 const float kGyroMix = 0.95;
@@ -124,8 +90,6 @@ LowPassFilter r_lpf(yaw_rate, kRateLpfMix);
 
 // Calibration
 bool is_calibrated = false;
-const float kMaxStableRoll = 5.0;  // deg
-const float kMaxStablePitch = 5.0; // deg
 
 // Calibration offsets
 float roll_offset = 0.0;  // deg
@@ -143,60 +107,6 @@ float r_setpoint = 0.0;     // deg/s
 unsigned long t_prev = millis();
 float roll_prev = 0.0;  // deg
 float pitch_prev = 0.0; // deg
-
-// PID Gains
-// Roll
-const float kRollKp = 0.05;
-const float kRollKi = 0.00001;
-const float kRollKd = 0.001;
-const float kRollLeak = 0.99;
-// Pitch
-const float kPitchKp = 0.07;
-const float kPitchKi = 0.0001;
-const float kPitchKd = 0.001;
-const float kPitchLeak = 0.99;
-// Yaw
-const float kYawKp = 0.06;
-const float kYawKi = 0.0001;
-const float kYawKd = 0.001;
-const float kYawLeak = 0.99;
-
-// Roll Rate
-const float kRollRateKp = 0.0003;
-const float kRollRateKi = 0.00000001;
-const float kRollRateKd = 0.000002;
-const float kRollRateKf = -0.000001;
-const float kRollRateLeak = 0.99;
-const float kRollRateIntegralLimit = 0.1 / kRollRateKi;
-// Pitch Rate
-const float kPitchRateKp = 0.0006;
-const float kPitchRateKi = 0.00000001;
-const float kPitchRateKd = 0.000002;
-const float kPitchRateKf = 0.000001;
-const float kPitchRateLeak = 0.99;
-const float kPitchRateIntegralLimit = 0.1 / kPitchRateKi;
-// Yaw Rate
-const float kYawRateKp = 0.0003;
-const float kYawRateKi = 0.00000001;
-const float kYawRateKd = 0.000002;
-const float kYawRateKf = 0.000001;
-const float kYawRateLeak = 0.99;
-const float kYawRateIntegralLimit = 0.1 / kYawRateKi;
-
-// PID output limits
-// Inner loop (rate) PID limits
-const float kRatePIDLower = -0.25; // %
-const float kRatePIDUpper = 0.25;  // %
-
-// PID Controllers
-PIDController roll_pid = PIDController(kRollKp, kRollKi, kRollKd);
-PIDController pitch_pid = PIDController(kPitchKp, kPitchKi, kPitchKd);
-PIDController yaw_pid = PIDController(kYawKp, kYawKi, kYawKd);
-PIDController roll_rate_pid =
-    PIDController(kRollRateKp, kRollRateKi, kRollRateKd);
-PIDController pitch_rate_pid =
-    PIDController(kPitchRateKp, kPitchRateKi, kPitchRateKd);
-PIDController yaw_rate_pid = PIDController(kYawRateKp, kYawRateKi, kYawRateKd);
 
 // Motor power
 float front_left_out = 0.0;
@@ -366,29 +276,8 @@ void setup()
     analogWriteFrequency(kFrontRightMotor, 50);
     analogWriteFrequency(kBackRightMotor, 50);
 
-    // Set PID output limits
-    roll_pid.SetOutputLimits(-kMaxRollRateCmd, kMaxRollRateCmd);
-    pitch_pid.SetOutputLimits(-kMaxPitchRateCmd, kMaxPitchRateCmd);
-    yaw_pid.SetOutputLimits(-kMaxYawRateCmd, kMaxYawRateCmd);
-    roll_rate_pid.SetOutputLimits(kRatePIDLower, kRatePIDUpper);
-    pitch_rate_pid.SetOutputLimits(kRatePIDLower, kRatePIDUpper);
-    yaw_rate_pid.SetOutputLimits(kRatePIDLower, kRatePIDUpper);
-
-    // Set the PID integrator limits
-    roll_rate_pid.SetIntegratorLimits(-kRollRateIntegralLimit,
-                                      kRollRateIntegralLimit);
-    pitch_rate_pid.SetIntegratorLimits(-kPitchRateIntegralLimit,
-                                       kPitchRateIntegralLimit);
-    yaw_rate_pid.SetIntegratorLimits(-kYawRateIntegralLimit,
-                                     kYawRateIntegralLimit);
-
-    // Set the leakiness for the integrators.
-    roll_pid.SetIntegratorLeak(kRollLeak);
-    pitch_pid.SetIntegratorLeak(kPitchLeak);
-    yaw_pid.SetIntegratorLeak(kYawLeak);
-    roll_rate_pid.SetIntegratorLeak(kRollRateLeak);
-    pitch_rate_pid.SetIntegratorLeak(kPitchRateLeak);
-    yaw_rate_pid.SetIntegratorLeak(kYawRateLeak);
+    // Initialize the controllers.
+    attitude_ctrl.Init();
 
     // Init the prev time to the start time.
     t_prev = micros();
@@ -491,6 +380,9 @@ void loop()
     if (fabs(roll) >= kRollLimit || fabs(pitch) >= kPitchLimit)
     {
         is_crashed = true;
+
+        // Reset the PIDs.
+        attitude_ctrl.Reset();
     }
 
     // The quadcopter can only be un-crashed once the throttle is set low and
@@ -501,48 +393,31 @@ void loop()
         is_crashed = false;
     }
 
-    switch (kMode)
-    {
-    case Angle:
-        roll_setpoint = convert_rc_stick_to_range(channel_values[kRollChannel],
-                                                  -kMaxRollCmd, kMaxRollCmd);
-        pitch_setpoint = convert_rc_stick_to_range(
-            channel_values[kPitchChannel], -kMaxPitchCmd, kMaxPitchCmd);
+    // Get remote control inputs.
+    float roll_stick =
+        convert_rc_stick_to_range(channel_values[kRollChannel], 0.0, 1.0);
+    float pitch_stick =
+        convert_rc_stick_to_range(channel_values[kPitchChannel], 0.0, 1.0);
+    float yaw_stick = 0.5;
 
-        // Outer loop PID controllers
-        p_setpoint = roll_pid.PIDRate(roll_setpoint, roll, roll_rate);
-        q_setpoint = pitch_pid.PIDRate(pitch_setpoint, pitch, pitch_rate);
+    // Package all control system inputs.
+    AttitudeControlInputs inputs = {roll_rate,  pitch_rate,  yaw_rate,
+                                    roll,       pitch,       yaw,
+                                    roll_stick, pitch_stick, yaw_stick};
 
-        break;
+    // Run control loops.
+    attitude_ctrl.Process(inputs, &attitude_out);
 
-    case Rate:
-    default:
-        p_setpoint = convert_rc_stick_to_range(
-            channel_values[kRollChannel], -kMaxRollRateCmd, kMaxRollRateCmd);
-        q_setpoint = convert_rc_stick_to_range(
-            channel_values[kPitchChannel], -kMaxPitchRateCmd, kMaxPitchRateCmd);
-
-        // Apply deadbands.
-        if (fabs(p_setpoint) < kRateDeadband)
-        {
-            p_setpoint = 0.0;
-        }
-        if (fabs(q_setpoint) < kRateDeadband)
-        {
-            q_setpoint = 0.0;
-        }
-    }
-
-    // Inner loop PID control calculations
-    float roll_output = -1.0 * roll_rate_pid.PID(p_setpoint, roll_rate) +
-                        (p_setpoint * kRollRateKf);
-    float pitch_output = pitch_rate_pid.PID(q_setpoint, pitch_rate) +
-                         (q_setpoint * kPitchRateKf);
-    float yaw_output =
-        yaw_rate_pid.PID(r_setpoint, yaw_rate) + (r_setpoint * kYawRateKf);
-    // Note: yaw_output is from the yaw rate PID, which tries to maintain 0 yaw
-    // rate. Eventually an outer loop yaw controller will be added to command
-    // yaw rate based on yaw setpoint.
+    // Unpack output for motors and logging.
+    float roll_output = attitude_out.roll_output;
+    float pitch_output = attitude_out.pitch_output;
+    float yaw_output = attitude_out.yaw_output;
+    p_setpoint = attitude_out.p_setpoint;
+    q_setpoint = attitude_out.q_setpoint;
+    r_setpoint = attitude_out.r_setpoint;
+    roll_setpoint = attitude_out.roll_setpoint;
+    pitch_setpoint = attitude_out.pitch_setpoint;
+    yaw_setpoint = attitude_out.yaw_setpoint;
 
     // If the quadcopter hasn't been calibrated, then set the roll and pitch
     // offsets. This runs at the start before flying. Only do this if the
@@ -614,9 +489,7 @@ void loop()
         pwm_br = kIdlePwm;
 
         // Reset the PIDs
-        roll_pid.Reset();
-        pitch_pid.Reset();
-        yaw_pid.Reset();
+        attitude_ctrl.Reset();
     }
 
     if (is_pwm_debug)

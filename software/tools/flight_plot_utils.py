@@ -1,4 +1,5 @@
 
+import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 
@@ -28,8 +29,10 @@ def plot_rate(t_clip, cmd, x, x_rate, pid=None, label=None):
     axs[0, 0].legend()
     axs[0, 0].set_ylabel(f"{state_name} (deg/s)")
 
-    axs[1, 0].plot(t_clip, x_rate, label=f"{state_name} rate")
-    axs[1, 0].set_ylabel(f"{state_name} rate (deg/s^2)")
+    # axs[1, 0].plot(t_clip, x_rate, label=f"{state_name} rate")
+    axs[1, 0].plot(t_clip, np.gradient(cmd - x, t_clip),
+                   label=f"{state_name} error rate")
+    axs[1, 0].set_ylabel(f"{state_name} error rate (deg/s^2)")
 
     if pid is not None:
         axs[0, 1].plot(t_clip, cmd - x, label=f"{state_name} error")
