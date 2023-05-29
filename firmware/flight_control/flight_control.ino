@@ -94,9 +94,9 @@ float br_trim = 0.04;
 const float kMaxRollCmd = 20.0;  // deg
 const float kMaxPitchCmd = 20.0; // deg
 
-const float kMaxRollRateCmd = 50.0;  // deg
-const float kMaxPitchRateCmd = 50.0; // deg
-const float kMaxYawRateCmd = 20.0;   // deg
+const float kMaxRollRateCmd = 200.0;  // deg
+const float kMaxPitchRateCmd = 200.0; // deg
+const float kMaxYawRateCmd = 100.0;   // deg
 
 // Filter constants
 const float kGyroMix = 0.95;
@@ -146,42 +146,42 @@ float pitch_prev = 0.0; // deg
 
 // PID Gains
 // Roll
-float roll_kp = 0.05;
-float roll_ki = 0.00001;
-float roll_kd = 0.001;
+const float kRollKp = 0.05;
+const float kRollKi = 0.00001;
+const float kRollKd = 0.001;
 const float kRollLeak = 0.99;
 // Pitch
-float pitch_kp = 0.07;
-float pitch_ki = 0.0001;
-float pitch_kd = 0.001;
+const float kPitchKp = 0.07;
+const float kPitchKi = 0.0001;
+const float kPitchKd = 0.001;
 const float kPitchLeak = 0.99;
 // Yaw
-float yaw_kp = 0.06;
-float yaw_ki = 0.0001;
-float yaw_kd = 0.001;
+const float kYawKp = 0.06;
+const float kYawKi = 0.0001;
+const float kYawKd = 0.001;
 const float kYawLeak = 0.99;
 
 // Roll Rate
-float roll_rate_kp = 0.0001;
-float roll_rate_ki = 0.00000001;
-float roll_rate_kd = 0.000002;
-float roll_rate_kf = -0.000001;
+const float kRollRateKp = 0.0003;
+const float kRollRateKi = 0.00000001;
+const float kRollRateKd = 0.000002;
+const float kRollRateKf = -0.000001;
 const float kRollRateLeak = 0.99;
-const float kRollRateIntegralLimit = 0.1 / roll_rate_ki;
+const float kRollRateIntegralLimit = 0.1 / kRollRateKi;
 // Pitch Rate
-float pitch_rate_kp = 0.0003;
-float pitch_rate_ki = 0.00000001;
-float pitch_rate_kd = 0.000002;
-float pitch_rate_kf = 0.000001;
+const float kPitchRateKp = 0.0006;
+const float kPitchRateKi = 0.00000001;
+const float kPitchRateKd = 0.000002;
+const float kPitchRateKf = 0.000001;
 const float kPitchRateLeak = 0.99;
-const float kPitchRateIntegralLimit = 0.1 / pitch_rate_ki;
+const float kPitchRateIntegralLimit = 0.1 / kPitchRateKi;
 // Yaw Rate
-float yaw_rate_kp = 0.0001;
-float yaw_rate_ki = 0.00000001;
-float yaw_rate_kd = 0.000002;
-float yaw_rate_kf = 0.000001;
+const float kYawRateKp = 0.0003;
+const float kYawRateKi = 0.00000001;
+const float kYawRateKd = 0.000002;
+const float kYawRateKf = 0.000001;
 const float kYawRateLeak = 0.99;
-const float kYawRateIntegralLimit = 0.1 / yaw_rate_ki;
+const float kYawRateIntegralLimit = 0.1 / kYawRateKi;
 
 // PID output limits
 // Inner loop (rate) PID limits
@@ -189,15 +189,14 @@ const float kRatePIDLower = -0.25; // %
 const float kRatePIDUpper = 0.25;  // %
 
 // PID Controllers
-PIDController roll_pid = PIDController(roll_kp, roll_ki, roll_kd);
-PIDController pitch_pid = PIDController(pitch_kp, pitch_ki, pitch_kd);
-PIDController yaw_pid = PIDController(yaw_kp, yaw_ki, yaw_kd);
+PIDController roll_pid = PIDController(kRollKp, kRollKi, kRollKd);
+PIDController pitch_pid = PIDController(kPitchKp, kPitchKi, kPitchKd);
+PIDController yaw_pid = PIDController(kYawKp, kYawKi, kYawKd);
 PIDController roll_rate_pid =
-    PIDController(roll_rate_kp, roll_rate_ki, roll_rate_kd);
+    PIDController(kRollRateKp, kRollRateKi, kRollRateKd);
 PIDController pitch_rate_pid =
-    PIDController(pitch_rate_kp, pitch_rate_ki, pitch_rate_kd);
-PIDController yaw_rate_pid =
-    PIDController(yaw_rate_kp, yaw_rate_ki, yaw_rate_kd);
+    PIDController(kPitchRateKp, kPitchRateKi, kPitchRateKd);
+PIDController yaw_rate_pid = PIDController(kYawRateKp, kYawRateKi, kYawRateKd);
 
 // Motor power
 float front_left_out = 0.0;
@@ -536,11 +535,11 @@ void loop()
 
     // Inner loop PID control calculations
     float roll_output = -1.0 * roll_rate_pid.PID(p_setpoint, roll_rate) +
-                        (p_setpoint * roll_rate_kf);
+                        (p_setpoint * kRollRateKf);
     float pitch_output = pitch_rate_pid.PID(q_setpoint, pitch_rate) +
-                         (q_setpoint * pitch_rate_kf);
+                         (q_setpoint * kPitchRateKf);
     float yaw_output =
-        yaw_rate_pid.PID(r_setpoint, yaw_rate) + (r_setpoint * yaw_rate_kf);
+        yaw_rate_pid.PID(r_setpoint, yaw_rate) + (r_setpoint * kYawRateKf);
     // Note: yaw_output is from the yaw rate PID, which tries to maintain 0 yaw
     // rate. Eventually an outer loop yaw controller will be added to command
     // yaw rate based on yaw setpoint.

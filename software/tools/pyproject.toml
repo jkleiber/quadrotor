@@ -16,6 +16,7 @@ notebook = "^6.5.4"
 lmfit = "^1.2.0"
 jupyter = "^1.0.0"
 pandas = "^2.0.0"
+tornado = "6.1"
 
 
 [build-system]
