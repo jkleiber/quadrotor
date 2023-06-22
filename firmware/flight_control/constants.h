@@ -65,8 +65,8 @@ const float kYawKd = 0.001;
 const float kYawLeak = 0.99;
 
 // Roll Rate
-const float kRollRatePDRatio = 2 * 10;
-const float kRollRateKp = -0.0006;
+const float kRollRatePDRatio = 40;
+const float kRollRateKp = -0.001;
 const float kRollRateKi = -0.00000001;
 const float kRollRateKd = kRollRateKp / kRollRatePDRatio;
 const float kRollRateKf = -0.0001;
@@ -96,3 +96,6 @@ const float kRatePIDUpper = 0.25;  // %
 
 // Angular rate deadband
 const float kRateDeadband = 10.0; // (deg/s)
+
+// Throttle curve parameters
+const float kMinThrottle = 0.22;

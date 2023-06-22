@@ -1,0 +1,8 @@
+
+
+Name     Value      Min      Max   Stderr     Vary     Expr Brute_Step
+a   -0.1353    -2000        0     None     True     None     None
+b    -372.2    -2000        0     None     True     None     None
+c  5.749e+05      100    8e+05     None     True     None     None
+
+produces a good fit for roll rate but not roll during steady state.

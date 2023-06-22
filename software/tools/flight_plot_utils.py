@@ -14,7 +14,7 @@ def load_csv(file):
     return csv_df
 
 
-def plot_rate(t_clip, cmd, x, x_rate, pid=None, label=None):
+def plot_rate(t_clip, cmd, x, x_rate, pid=None, label=None, gains=None):
     if pid is None:
         f, axs = plt.subplots(2, 1, sharex=True)
     else:
@@ -40,6 +40,15 @@ def plot_rate(t_clip, cmd, x, x_rate, pid=None, label=None):
 
         axs[1, 1].plot(t_clip, pid, label=f"{state_name} PID")
         axs[1, 1].set_ylabel(f"{state_name} PID (%)")
+
+        if gains is not None:
+            p_ctrl = gains[0] * (cmd - x)
+            d_ctrl = gains[2] * np.gradient(cmd - x, t_clip)
+            pd_ctrl = p_ctrl + d_ctrl
+            # axs[1, 1].plot(t_clip, p_ctrl, label="P")
+            # axs[1, 1].plot(t_clip, d_ctrl, label="D")
+            axs[1, 1].plot(t_clip, pd_ctrl, label="PD")
+        axs[1, 1].legend()
 
     plt.tight_layout()
     plt.show()

@@ -90,6 +90,10 @@ void AttitudeControl::Process(const AttitudeControlInputs &inputs,
     // Note: yaw_output is from the yaw rate PID, which tries to maintain 0 yaw
     // rate. Eventually an outer loop yaw controller will be added to command
     // yaw rate based on yaw setpoint.
+
+    // TEST OVERRIDES
+    outputs->pitch_output = 0.0;
+    outputs->yaw_output = 0.0;
 }
 
 void AttitudeControl::Reset()

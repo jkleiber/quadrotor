@@ -10,6 +10,7 @@
 
 #include "attitude_control.h"
 #include "constants.h"
+#include "control_utils.h"
 #include "lpf.h"
 #include "pid.h"
 #include "pwm_utils.h"
@@ -444,18 +445,29 @@ void loop()
         // Don't do anything unless the throttle is outside a deadband, and the
         // quadcopter is uncrashed. The IMU positions must also be calibrated.
 
+        // Enforce a minimum throttle, but scale cubically
+        float throttle_above_cutoff = (throttle - kThrottleCutoff);
+        throttle = (throttle_above_cutoff * throttle_above_cutoff *
+                    throttle_above_cutoff) +
+                   kMinThrottle;
+        Clamp(&throttle, kMinThrottle, 1.0);
+
         // MOTOR MAPPING
         // Compute power for each motor.
-        front_left_out = throttle - roll_output + pitch_output + yaw_output;
-        back_left_out = throttle - roll_output - pitch_output - yaw_output;
-        front_right_out = throttle + roll_output + pitch_output - yaw_output;
-        back_right_out = throttle + roll_output - pitch_output + yaw_output;
+        front_left_out =
+            throttle - roll_output + pitch_output + yaw_output + fl_trim;
+        back_left_out =
+            throttle - roll_output - pitch_output - yaw_output + bl_trim;
+        front_right_out =
+            throttle + roll_output + pitch_output - yaw_output + fr_trim;
+        back_right_out =
+            throttle + roll_output - pitch_output + yaw_output + br_trim;
 
         // Apply trim and convert power to PWM
-        pwm_fl = convert_power_to_pwm(front_left_out + fl_trim);
-        pwm_bl = convert_power_to_pwm(back_left_out + bl_trim);
-        pwm_fr = convert_power_to_pwm(front_right_out + fr_trim);
-        pwm_br = convert_power_to_pwm(back_right_out + br_trim);
+        pwm_fl = convert_power_to_pwm(front_left_out);
+        pwm_bl = convert_power_to_pwm(back_left_out);
+        pwm_fr = convert_power_to_pwm(front_right_out);
+        pwm_br = convert_power_to_pwm(back_right_out);
 
         // Clamp the duty cycles
         pwm_fl = clamp_pwm_duty(pwm_fl, kPwmMinDutyMicros, kPwmMaxDutyMicros);

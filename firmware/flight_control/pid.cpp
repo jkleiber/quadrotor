@@ -17,6 +17,7 @@ float PIDController::PID(const float &setpoint, const float &x)
     // Compute time difference
     unsigned long t = micros();
     float dt = (float)(t - prev_t_) / MICROS_IN_A_SECOND;
+    prev_t_ = t;
 
     // Compute the integral.
     integrator_ += 0.5 * (error + prev_error_) * dt;
@@ -43,6 +44,9 @@ float PIDController::PID(const float &setpoint, const float &x)
     // Compute the output.
     float output = P + I + D;
 
+    // Assign the current error to be the next previous error.
+    prev_error_ = error;
+
     // Apply limits if needed.
     if (output_min_ < output_max_)
     {
@@ -64,6 +68,7 @@ float PIDController::PIDRate(const float &setpoint, const float &x,
     // Compute time difference
     unsigned long t = micros();
     float dt = (float)(t - prev_t_) / MICROS_IN_A_SECOND;
+    prev_t_ = t;
 
     // Apply leaky integral.
     integrator_ *= leak_factor_;
@@ -86,6 +91,9 @@ float PIDController::PIDRate(const float &setpoint, const float &x,
     // Compute the output.
     float output = P + I + D;
 
+    // Assign the current error to be the next previous error.
+    prev_error_ = error;
+
     // Apply limits if needed.
     if (output_min_ < output_max_)
     {
@@ -93,19 +101,6 @@ float PIDController::PIDRate(const float &setpoint, const float &x,
     }
 
     return output;
-}
-
-void PIDController::Clamp(float *val, const float &min, const float &max)
-{
-    // Ensure that the value is within the constraints.
-    if (*val < min)
-    {
-        *val = min;
-    }
-    else if (*val > max)
-    {
-        *val = max;
-    }
 }
 
 void PIDController::SetOutputLimits(const float &min, const float &max)

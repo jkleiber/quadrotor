@@ -3,6 +3,8 @@
 
 #include <Arduino.h>
 
+#include "control_utils.h"
+
 #define MICROS_IN_A_SECOND (float)(1000.0 * 1000.0)
 
 class PIDController
@@ -23,7 +25,6 @@ public:
     ~PIDController() {}
 
     void Reset();
-    void Clamp(float *val, const float &min, const float &max);
 
     // PID computation types
     float PID(const float &setpoint, const float &x);

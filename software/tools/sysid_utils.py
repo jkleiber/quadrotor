@@ -51,9 +51,9 @@ def cost_2dof_integrator(params, tlm_data):
 def sysid_quadrotor_angle(tlm_data, obj_fn):
     # Do the system ID (find the best parameters for the system)
     params = Parameters()
-    params.add('a', value=-1.0, min=-1000, max=0.0)
-    params.add('b', value=-20, min=-1000, max=1000.0)
-    params.add('c', value=100000.0, min=0.0, max=800000.0)
+    params.add('a', value=-500.0, min=-2000, max=0.0)
+    params.add('b', value=-200, min=-2000, max=0.0)
+    params.add('c', value=200000.0, min=100.0, max=800000.0)
 
     results = minimize(obj_fn, params, method='nelder',
                        args=(tlm_data,))
@@ -82,24 +82,23 @@ def sim_quadrotor_attitude(tlm_data, sys, params, pause=False):
 
     # Plot the results for the time slice
     # x
-    plt.figure()
-    plt.plot(t, x)
-    plt.plot(t, sys_traj[0, :])
-
-    plt.title("x")
-    plt.xlabel("Time (sec)")
-    plt.ylabel("x (deg)")
-    plt.legend(("Real", "SysID"))
+    fig, axs = plt.subplots(3, sharex=True)
+    axs[0].plot(t, x)
+    axs[0].plot(t, sys_traj[0, :])
+    axs[0].set_ylabel("x (deg)")
+    axs[0].legend(("Real", "SysID"))
 
     # x Rate
-    plt.figure()
-    plt.plot(t, x_rate)
-    plt.plot(t, sys_traj[1, :])
+    axs[1].plot(t, x_rate)
+    axs[1].plot(t, sys_traj[1, :])
+    axs[1].set_ylabel("x rate (deg/s)")
+    axs[1].legend(("Real", "SysID"))
 
-    plt.title("x rate")
-    plt.xlabel("Time (sec)")
-    plt.ylabel("x rate (deg/s)")
-    plt.legend(("Real", "SysID"))
+    # actuator
+    axs[2].plot(t, actuator)
+    axs[2].set_ylabel("actuator (%)")
+
+    fig.tight_layout()
 
     # Show plot
     plt.show(block=False)
