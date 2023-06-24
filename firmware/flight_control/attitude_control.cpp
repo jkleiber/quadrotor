@@ -92,6 +92,7 @@ void AttitudeControl::Process(const AttitudeControlInputs &inputs,
     // yaw rate based on yaw setpoint.
 
     // TEST OVERRIDES
+    outputs->roll_output = 0.0;
     outputs->pitch_output = 0.0;
     outputs->yaw_output = 0.0;
 }
