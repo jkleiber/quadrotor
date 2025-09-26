@@ -1,8 +1,8 @@
 #! /bin/bash
 
 cd "$(dirname "$0")"
-WORLDS="$(pwd)/../../simulation/worlds"
-PLUGINS_BUILD_DIR="$(pwd)/../../simulation/plugins/build"
+WORLDS="$(pwd)/../../gazebo-sim/worlds"
+PLUGINS_BUILD_DIR="$(pwd)/../../gazebo-sim/plugins/build"
 
 # Need to be in the plugin directory
 cd $PLUGINS_BUILD_DIR

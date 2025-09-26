@@ -20,4 +20,4 @@ A custom flight controller made in KiCAD exists in the `hardware/` directory. Th
 
 ## Gazebo Simulation
 
-There is a gazebo simulation environment in the `simulation/` directory. It is somewhat functional, but more work has been put into the control simulation GUI. The current gazebo settings aren't configured for the actual drone.
+There is a gazebo simulation environment in the `gazebo-sim/` directory. It is somewhat functional, but more work has been put into the control simulation GUI. The current gazebo settings aren't configured for the actual drone.

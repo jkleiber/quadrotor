@@ -2,7 +2,7 @@
 
 cd "$(dirname "$0")"
 
-WORLDS="$(pwd)/../../simulation/worlds"
+WORLDS="$(pwd)/../../gazebo-sim/worlds"
 
 # export GAZEBO_MODEL_PATH=${GAZEBO_MODEL_PATH}:$(pwd)/models
 
