@@ -37,6 +37,14 @@
 				"Android",
 				"IOS"
 			]
-		}
+		},
+		{
+			"Name": "TempoROS",
+			"Enabled": false
+		},
+		{
+			"Name": "TempoROSBridge",
+			"Enabled": false
+		},
 	]
 }

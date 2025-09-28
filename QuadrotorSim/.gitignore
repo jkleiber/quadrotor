@@ -3,3 +3,4 @@ DerivedDataCache/
 Intermediate/
 Saved/
 *.sqlite*
+TempoEnv/
