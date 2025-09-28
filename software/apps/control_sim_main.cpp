@@ -3,9 +3,9 @@
 #include <iostream>
 #include <thread>
 
-#include "control_sim/control_sim_gui.h"
-#include "control_sim/control_sim_loop.h"
-#include "control_sim/events.h"
+#include <control_sim/control_sim_gui.h>
+#include <control_sim/control_sim_loop.h>
+#include <control_sim/events.h>
 
 #include "SDL.h"
 #include <Eigen/Dense>

@@ -61,7 +61,7 @@ endif()
 add_subdirectory(third_party)
 
 # The compiled library code is here
-add_subdirectory(src)
+add_subdirectory(control_sim)
 
 # The executable code is here
 add_subdirectory(apps)

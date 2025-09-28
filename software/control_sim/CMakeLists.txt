@@ -4,14 +4,15 @@ cmake_minimum_required(VERSION 3.15 FATAL_ERROR)
 # find_package(Eigen3 3.3 REQUIRED NO_MODULE)
 file(GLOB HEADER_LIST
     CONFIGURE_DEPENDS
-    "${Quadrotor_SOURCE_DIR}/include/control_sim/*.h")
+    "include/control_sim/*.h")
 
 file(GLOB SOURCE_LIST
     CONFIGURE_DEPENDS
-    "${Quadrotor_SOURCE_DIR}/src/control_sim/*.cpp")
+    "src/*.cpp")
 
 # Create the control simulation library
 add_library(control_sim_lib ${SOURCE_LIST} ${HEADER_LIST})
+target_include_directories(control_sim_lib PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
 set_target_properties(control_sim_lib PROPERTIES LINKER_LANGUAGE CXX)
 
 # Inherit include directories
