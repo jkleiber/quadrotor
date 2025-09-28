@@ -2,7 +2,7 @@
 
 # Find compile script working directory
 cd "$(dirname "$0")"
-COMPILE_WD="$(pwd)/../build"
+COMPILE_WD="$(pwd)/../../build"
 
 # Change to build directory
 cd $COMPILE_WD

@@ -2,8 +2,8 @@
 
 # Change to scripts directory and run relative to it
 cd "$(dirname "$0")"
-ROBOT_BIN="$(pwd)/../build/apps"
-SIM_BIN="$(pwd)/../../gazebo-sim/plugins/build"
+ROBOT_BIN="$(pwd)/../../build/apps"
+SIM_BIN="$(pwd)/../../../gazebo-sim/plugins/build"
 
 # Start the gazebo simulation
 cd ${SIM_BIN}

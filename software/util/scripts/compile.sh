@@ -3,9 +3,9 @@
 # Find compile script working directory
 cd "$(dirname "$0")"
 SCRIPTS_DIR="$(pwd)"
-COMPILE_WD="$(pwd)/../build"
-CONFIG_WD="$(pwd)/../config"
-SIM_SCRIPTS_DIR="$(pwd)/../../gazebo-sim/scripts"
+COMPILE_WD="$(pwd)/../../build"
+CONFIG_WD="$(pwd)/../../config"
+SIM_SCRIPTS_DIR="$(pwd)/../../../gazebo-sim/scripts"
 
 # Change to build directory
 cd $COMPILE_WD

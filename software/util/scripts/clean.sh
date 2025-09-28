@@ -1,8 +1,8 @@
 
 # Find clean script working directory
 cd "$(dirname "$0")"
-COMPILE_WD="$(pwd)/../build"
-APPS_WD="$(pwd)/../build/apps"
+COMPILE_WD="$(pwd)/../../build"
+APPS_WD="$(pwd)/../../build/apps"
 
 # Change to the build directory
 cd $COMPILE_WD
