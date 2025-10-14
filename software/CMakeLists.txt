@@ -61,7 +61,9 @@ endif()
 add_subdirectory(third_party)
 
 # All "products" to compile are listed below
+add_subdirectory(kleiber_control)
 add_subdirectory(kleiber_dynamics)
+add_subdirectory(quadcopter_autopilot)
 add_subdirectory(control_sim)
 
 # The executable code is here

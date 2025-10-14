@@ -7,3 +7,6 @@
 [submodule "software/kleiber_dynamics"]
 	path = software/kleiber_dynamics
 	url = git@github.com:jkleiber/kleiber_dynamics.git
+[submodule "software/kleiber_control"]
+	path = software/kleiber_control
+	url = git@github.com:jkleiber/kleiber_control.git
