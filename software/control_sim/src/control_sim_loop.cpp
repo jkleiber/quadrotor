@@ -33,7 +33,24 @@ bool ControlSimLoop::InitSim()
     pitch_chart.Init("Pitch", "Pitch");
     yaw_chart.Init("Yaw", "Yaw");
 
+    // Initialize logging.
+    InitLogging();
+
     return true;
+}
+
+void ControlSimLoop::InitLogging()
+{
+    // Initialize logging
+    bool is_log_active = false;
+    state_log_.LoggingActive(&is_log_active);
+    if (is_log_active)
+    {
+        state_log_.CloseLog();
+    }
+    // TODO: time based logging
+    state_log_.Init("state_log_.csv");
+    state_log_.LogHeaders("u, v, w, p, q, r, x, y, z, roll, pitch, yaw");
 }
 
 bool ControlSimLoop::UpdateSim()
@@ -69,7 +86,7 @@ bool ControlSimLoop::UpdateSim()
         ctrl.UpdateParams(!is_running);
 
         // Update the parameters if the sim is in the initial state.
-        quadcopter.UpdateParams(is_initial);
+        UpdateQuadcopterParams(is_initial);
 
         // End the tab bar
         ImGui::EndTabBar();
@@ -87,7 +104,6 @@ bool ControlSimLoop::UpdateSim()
     {
         // If the simulator is in the initial condition, update the PID gains.
         ctrl.IdleLoop();
-        quadcopter.IdleLoop();
     }
 
     // Show the plots
@@ -120,10 +136,19 @@ bool ControlSimLoop::RunSimLoop()
     // Get state variables
     x = quadcopter.GetState();
 
+    // Log the current sim state.
+    LogState();
+
     // Increment time
     clk_->Increment();
 
     return true;
+}
+
+void ControlSimLoop::LogState()
+{
+    // Log the current state.
+    state_log_.LogVectorXd(this->x);
 }
 
 bool ControlSimLoop::View()
@@ -170,4 +195,77 @@ bool ControlSimLoop::ResetPlots()
     yaw_chart.Reset();
 
     return true;
+}
+
+void ControlSimLoop::UpdateQuadcopterParams(bool is_enabled)
+{
+    quadcopter::VehicleParameters quadcopter_params{
+        quadcopter.GetVehicleParameters()};
+    quadcopter::EnvironmentParameters env_params{
+        quadcopter.GetEnvironmentParameters()};
+
+    // If the simulation is running, disable gain selection
+    if (!is_enabled)
+    {
+        ImGui::BeginDisabled();
+    }
+
+    // Add a tab to the TabBar
+    // Note: there must be a BeginTabBar before this is called.
+    if (ImGui::BeginTabItem("Vehicle"))
+    {
+        if (ImGui::CollapsingHeader("Mass and Inertials"))
+        {
+            ImGui::InputScalar("Mass (kg)", ImGuiDataType_Double,
+                               &quadcopter_params.m, NULL);
+            ImGui::InputScalar("Ixx (kg/m^2)", ImGuiDataType_Double,
+                               &quadcopter_params.Ixx, NULL);
+            ImGui::InputScalar("Iyy (kg/m^2)", ImGuiDataType_Double,
+                               &quadcopter_params.Iyy, NULL);
+            ImGui::InputScalar("Izz (kg/m^2)", ImGuiDataType_Double,
+                               &quadcopter_params.Izz, NULL);
+        }
+        if (ImGui::CollapsingHeader("Dimensions"))
+        {
+            ImGui::InputScalar("Arm dx (m)", ImGuiDataType_Double,
+                               &quadcopter_params.dx_arm, NULL);
+            ImGui::InputScalar("Arm dy (m)", ImGuiDataType_Double,
+                               &quadcopter_params.dy_arm, NULL);
+        }
+        if (ImGui::CollapsingHeader("Limits"))
+        {
+            ImGui::InputScalar("Max Motor Force (N)", ImGuiDataType_Double,
+                               &quadcopter_params.max_motor_force, NULL);
+            ImGui::InputScalar("Max Ang. Vel (rad/s)", ImGuiDataType_Double,
+                               &quadcopter_params.max_omega, NULL);
+            ImGui::InputScalar("Max Slew Rate (%/s)", ImGuiDataType_Double,
+                               &quadcopter_params.motor_slew_rate, NULL);
+        }
+        if (ImGui::CollapsingHeader("Dynamic Constants"))
+        {
+            ImGui::InputScalar("Kf divisor", ImGuiDataType_Double,
+                               &quadcopter_params.Kf_divisor_, NULL);
+        }
+        if (ImGui::CollapsingHeader("Environment"))
+        {
+            ImGui::InputScalar("Gravity (m/s^2)", ImGuiDataType_Double,
+                               &env_params.g, NULL);
+            ImGui::InputScalar("Disturbance Mean", ImGuiDataType_Double,
+                               &env_params.dist_mean, NULL);
+            ImGui::InputScalar("Disturbance Std. Dev", ImGuiDataType_Double,
+                               &env_params.dist_stddev, NULL);
+        }
+        ImGui::EndTabItem();
+    }
+
+    // End the disabled part if gains should not be changed
+    if (!is_enabled)
+    {
+        ImGui::EndDisabled();
+    }
+    else
+    {
+        quadcopter.SetVehicleParams(quadcopter_params);
+        quadcopter.SetEnvironmentParams(env_params);
+    }
 }

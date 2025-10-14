@@ -25,8 +25,8 @@ else()
     target_include_directories(control_sim_lib PUBLIC ../../include ${IMGUI_INCLUDES})
 endif(WIN32)
 
-# This depends on Eigen and imgui
-target_link_libraries(control_sim_lib PUBLIC Eigen3::Eigen IMGUI IMPLOT)
+# Link dependencies.
+target_link_libraries(control_sim_lib PUBLIC Eigen3::Eigen IMGUI IMPLOT kleiber-dynamics)
 
 # All users of this library will need at least C++17
 target_compile_features(control_sim_lib PUBLIC cxx_std_17)

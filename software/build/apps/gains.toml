@@ -1,10 +1,10 @@
 // Roll PID
-roll_gains.kp = 0.300000;
-roll_gains.ki = 0.100000;
-roll_gains.kd = 0.060000;
+roll_gains.kp = 0.100000;
+roll_gains.ki = 0.001000;
+roll_gains.kd = 0.050000;
 roll_gains.kf = 0.000000;
-roll_gains.min_out = -0.300000;
-roll_gains.max_out = 0.300000;
+roll_gains.min_out = -0.200000;
+roll_gains.max_out = 0.200000;
 
 // Pitch PID
 pitch_gains.kp = 0.100000;

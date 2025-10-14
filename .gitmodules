@@ -4,3 +4,6 @@
 [submodule "QuadrotorSim/Plugins/Tempo"]
 	path = QuadrotorSim/Plugins/Tempo
 	url = https://github.com/tempo-sim/Tempo.git
+[submodule "software/kleiber_dynamics"]
+	path = software/kleiber_dynamics
+	url = git@github.com:jkleiber/kleiber_dynamics.git

@@ -7,14 +7,17 @@
 #include "control_sim/events.h"
 #include "control_sim/math_utils.h"
 #include "control_sim/plotting.h"
-#include "control_sim/quadcopter_dynamics.h"
 #include "control_sim/sim_clock.h"
+
+#include <quadcopter/dynamics.h>
+#include <quadcopter/parameters.h>
 
 class ControlSimLoop
 {
 public:
     ControlSimLoop(SimClock *clk, GuiEvents *gui_events)
-        : quadcopter(clk), ctrl(clk), clk_(clk), gui_events_(gui_events)
+        : quadcopter(clk->GetDt()), ctrl(clk), clk_(clk),
+          gui_events_(gui_events), state_log_(clk)
     {
         InitSim();
     }
@@ -35,7 +38,7 @@ private:
     Eigen::VectorXd u;
 
     // Dynamics and control
-    QuadcopterDynamics quadcopter;
+    quadcopter::Dynamics quadcopter;
     ControlLoop ctrl;
 
     SimClock *const clk_;
@@ -50,4 +53,12 @@ private:
     Plotting::ScrollingBuffer roll_chart;
     Plotting::ScrollingBuffer pitch_chart;
     Plotting::ScrollingBuffer yaw_chart;
+
+    // Parameter editing
+    void UpdateQuadcopterParams(bool is_enabled);
+
+    // Logging.
+    Logging state_log_;
+    void InitLogging();
+    void LogState();
 };

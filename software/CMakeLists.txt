@@ -60,7 +60,8 @@ endif()
 # Third party libraries are here
 add_subdirectory(third_party)
 
-# The compiled library code is here
+# All "products" to compile are listed below
+add_subdirectory(kleiber_dynamics)
 add_subdirectory(control_sim)
 
 # The executable code is here
