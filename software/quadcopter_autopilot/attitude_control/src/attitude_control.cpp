@@ -3,32 +3,7 @@
 
 #include <math.h>
 
-void AttitudeControl::Init()
-{
-    // Set PID output limits
-    roll_pid_.SetOutputLimits(-kMaxRollRateCmd, kMaxRollRateCmd);
-    pitch_pid_.SetOutputLimits(-kMaxPitchRateCmd, kMaxPitchRateCmd);
-    yaw_pid_.SetOutputLimits(-kMaxYawRateCmd, kMaxYawRateCmd);
-    roll_rate_pid_.SetOutputLimits(kRatePIDLower, kRatePIDUpper);
-    pitch_rate_pid_.SetOutputLimits(kRatePIDLower, kRatePIDUpper);
-    yaw_rate_pid_.SetOutputLimits(kRatePIDLower, kRatePIDUpper);
-
-    // Set the PID integrator limits
-    roll_rate_pid_.SetIntegratorLimits(-kRollRateIntegralLimit,
-                                       kRollRateIntegralLimit);
-    pitch_rate_pid_.SetIntegratorLimits(-kPitchRateIntegralLimit,
-                                        kPitchRateIntegralLimit);
-    yaw_rate_pid_.SetIntegratorLimits(-kYawRateIntegralLimit,
-                                      kYawRateIntegralLimit);
-
-    // Set the leakiness for the integrators.
-    roll_pid_.SetIntegratorLeak(kRollLeak);
-    pitch_pid_.SetIntegratorLeak(kPitchLeak);
-    yaw_pid_.SetIntegratorLeak(kYawLeak);
-    roll_rate_pid_.SetIntegratorLeak(kRollRateLeak);
-    pitch_rate_pid_.SetIntegratorLeak(kPitchRateLeak);
-    yaw_rate_pid_.SetIntegratorLeak(kYawRateLeak);
-}
+void AttitudeControl::Init() {}
 
 void AttitudeControl::SetMode(const ControlMode &mode)
 {

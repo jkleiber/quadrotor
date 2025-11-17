@@ -13,7 +13,7 @@ class Logging
 {
 public:
     // Constructor
-    Logging(SimClock *clk) : clk_(clk) {}
+    Logging(SimClock &clk) : clk_(clk) {}
 
     // Destructor
     ~Logging();
@@ -33,7 +33,7 @@ public:
 
 private:
     // Clock
-    SimClock const *clk_;
+    SimClock &clk_;
 
     // Log file
     std::ofstream file_;

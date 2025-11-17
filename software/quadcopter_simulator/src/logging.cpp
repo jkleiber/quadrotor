@@ -21,7 +21,7 @@ void Logging::LogHeaders(std::string headers)
 void Logging::LogCsv(std::string data)
 {
     // Get time
-    double t = clk_->GetTime();
+    double t = clk_.GetTime();
 
     // Convert time to string
     std::string t_str = std::to_string(t);
