@@ -99,8 +99,7 @@ public:
     void Reset();
     void SetMode(const ControlMode &mode);
 
-    void Process(const AttitudeControlInputs &inputs,
-                 AttitudeControlOutputs *outputs);
+    AttitudeControlOutputs ComputeControl(const AttitudeControlInputs &inputs);
 
 private:
     // Helper function to convert [0, 1] ranges into [x, y] ranges.

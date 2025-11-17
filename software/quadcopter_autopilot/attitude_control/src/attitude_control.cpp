@@ -36,70 +36,68 @@ void AttitudeControl::SetMode(const ControlMode &mode)
     mode_ = mode;
 }
 
-void AttitudeControl::Process(const AttitudeControlInputs &inputs,
-                              AttitudeControlOutputs *outputs)
+AttitudeControlOutputs
+AttitudeControl::ComputeControl(const AttitudeControlInputs &inputs)
 {
-    // Don't do anything if the outputs pointer is nullptr.
-    if (outputs == nullptr)
-    {
-        return;
-    }
+    AttitudeControlOutputs outputs{};
 
     // OUTER LOOP
     switch (kMode)
     {
     case Angle:
-        outputs->roll_setpoint =
+        outputs.roll_setpoint =
             ConvertPercentToRange(inputs.roll_stick, -kMaxRollCmd, kMaxRollCmd);
-        outputs->pitch_setpoint = ConvertPercentToRange(
+        outputs.pitch_setpoint = ConvertPercentToRange(
             inputs.pitch_stick, -kMaxPitchCmd, kMaxPitchCmd);
 
         // Outer loop PID controllers
-        outputs->p_setpoint = roll_pid_.UpdateOutput(outputs->roll_setpoint,
-                                                     inputs.roll, inputs.p);
-        outputs->q_setpoint = pitch_pid_.UpdateOutput(outputs->pitch_setpoint,
-                                                      inputs.pitch, inputs.q);
-        outputs->r_setpoint = 0;
+        outputs.p_setpoint = roll_pid_.UpdateOutput(outputs.roll_setpoint,
+                                                    inputs.roll, inputs.p);
+        outputs.q_setpoint = pitch_pid_.UpdateOutput(outputs.pitch_setpoint,
+                                                     inputs.pitch, inputs.q);
+        outputs.r_setpoint = 0;
 
         break;
 
     case Rate:
     default:
-        outputs->p_setpoint = ConvertPercentToRange(
+        outputs.p_setpoint = ConvertPercentToRange(
             inputs.roll_stick, -kMaxRollRateCmd, kMaxRollRateCmd);
-        outputs->q_setpoint = ConvertPercentToRange(
+        outputs.q_setpoint = ConvertPercentToRange(
             inputs.pitch_stick, -kMaxPitchRateCmd, kMaxPitchRateCmd);
-        outputs->r_setpoint = 0;
+        outputs.r_setpoint = 0;
 
         // Apply deadbands.
-        if (::fabs(outputs->p_setpoint) < kRateDeadband)
+        if (::fabs(outputs.p_setpoint) < kRateDeadband)
         {
-            outputs->p_setpoint = 0.0;
+            outputs.p_setpoint = 0.0;
         }
-        if (::fabs(outputs->q_setpoint) < kRateDeadband)
+        if (::fabs(outputs.q_setpoint) < kRateDeadband)
         {
-            outputs->q_setpoint = 0.0;
+            outputs.q_setpoint = 0.0;
         }
     }
 
     // INNER LOOP
-    outputs->roll_output =
-        roll_rate_pid_.UpdateOutput(outputs->p_setpoint, inputs.p) +
-        (outputs->p_setpoint * kRollRateKf);
-    outputs->pitch_output =
-        pitch_rate_pid_.UpdateOutput(outputs->q_setpoint, inputs.q) +
-        (outputs->q_setpoint * kPitchRateKf);
-    outputs->yaw_output =
-        yaw_rate_pid_.UpdateOutput(outputs->r_setpoint, inputs.r) +
-        (outputs->r_setpoint * kYawRateKf);
+    outputs.roll_output =
+        roll_rate_pid_.UpdateOutput(outputs.p_setpoint, inputs.p) +
+        (outputs.p_setpoint * kRollRateKf);
+    outputs.pitch_output =
+        pitch_rate_pid_.UpdateOutput(outputs.q_setpoint, inputs.q) +
+        (outputs.q_setpoint * kPitchRateKf);
+    outputs.yaw_output =
+        yaw_rate_pid_.UpdateOutput(outputs.r_setpoint, inputs.r) +
+        (outputs.r_setpoint * kYawRateKf);
     // Note: yaw_output is from the yaw rate PID, which tries to maintain 0 yaw
     // rate. Eventually an outer loop yaw controller will be added to command
     // yaw rate based on yaw setpoint.
 
     // TEST OVERRIDES
-    // outputs->roll_output = 0.0;
-    // outputs->pitch_output = 0.0;
-    // outputs->yaw_output = 0.0;
+    // outputs.roll_output = 0.0;
+    // outputs.pitch_output = 0.0;
+    // outputs.yaw_output = 0.0;
+
+    return outputs;
 }
 
 void AttitudeControl::Reset()

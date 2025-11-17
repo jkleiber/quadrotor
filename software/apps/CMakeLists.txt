@@ -2,13 +2,17 @@
 # Compilation Options
 OPTION(COMPILE_SIMULATION "Build the Gazebo simulation robot code" OFF)
 
-# ================= Control Simulation ==================
+# ================= Flight Control Application ==================
+add_executable(quadrotor_fc flight_control_main.cpp)
+
+# ================= Simulators ==================
 add_executable(control_sim control_sim_main.cpp)
 target_compile_features(control_sim PRIVATE cxx_std_17)
 target_link_libraries(control_sim PRIVATE SDL2main control_sim_lib)
 
-# ================= Flight Computer Code ==================
-add_executable(quadrotor_fc main.cpp)
+add_executable(quadcopter_simulator quadcopter_sim_main.cpp)
+target_compile_features(quadcopter_simulator PRIVATE cxx_std_17)
+target_link_libraries(quadcopter_simulator PRIVATE quadcopter-simulator)
 
 # ================= Gazebo Simulation ==================
 if(COMPILE_SIMULATION)

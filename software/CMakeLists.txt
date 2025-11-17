@@ -64,6 +64,7 @@ add_subdirectory(third_party)
 add_subdirectory(kleiber_control)
 add_subdirectory(kleiber_dynamics)
 add_subdirectory(quadcopter_autopilot)
+add_subdirectory(quadcopter_simulator)
 add_subdirectory(control_sim)
 
 # The executable code is here
